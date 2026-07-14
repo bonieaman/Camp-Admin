@@ -1,4 +1,4 @@
-﻿-- CreateTable
+-- CreateTable
 CREATE TABLE "Setting" (
     "id" TEXT NOT NULL DEFAULT 'camp',
     "campName" TEXT NOT NULL DEFAULT 'Youth Camp 2026',
@@ -157,4 +157,3 @@ ALTER TABLE "OutreachRecord" ADD CONSTRAINT "OutreachRecord_participantId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "ChallengeRecord" ADD CONSTRAINT "ChallengeRecord_participantId_fkey" FOREIGN KEY ("participantId") REFERENCES "Participant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
