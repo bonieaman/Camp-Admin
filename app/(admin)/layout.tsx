@@ -24,7 +24,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   return (
     <AdminShell title="Youth Camp 2026" campLine={`Day ${campDay} / ${settings.totalDays} • ${settings.timezone}`}>
-      <RealtimeRefresh />
+      <RealtimeRefresh interval={2500} />
       {children}
     </AdminShell>
   );

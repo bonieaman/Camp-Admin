@@ -4,7 +4,7 @@ $zip = Join-Path $root "Youth-Camp-2026-Admin.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 $stage = Join-Path ([System.IO.Path]::GetTempPath()) ("yc-admin-zip-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $stage | Out-Null
-$excludeDirs = @("node_modules", ".next", ".git")
+$excludeDirs = @("node_modules", ".next", ".git", "Youth-Camp-2026-Admin")
 $excludeFiles = @(".env", "Youth-Camp-2026-Admin.zip", "dev.db", "dev.db-journal", "dev-server*.log")
 robocopy $root $stage /E /XD $excludeDirs /XF $excludeFiles | Out-Null
 if ($LASTEXITCODE -gt 7) {

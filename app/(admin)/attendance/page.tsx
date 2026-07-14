@@ -7,6 +7,8 @@ export default function AttendancePage() {
     <ScannerPanel
       title="Attendance QR Scanner"
       endpoint="/api/attendance"
+      action="attendance"
+      confirmLabel="Record Attendance"
       manualMode="participant-number"
       controls={
         <>

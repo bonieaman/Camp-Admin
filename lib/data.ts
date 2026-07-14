@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { campDayFor, dateOnly, ensureSettings, isCampDate, todayInCampTimezone } from "@/lib/camp";
+import { campDayDisplay, campDayFor, dateOnly, ensureSettings, isCampDate, todayInCampTimezone } from "@/lib/camp";
 import { prisma } from "@/lib/db";
 import { certificateStatus } from "@/lib/eligibility";
 
@@ -24,7 +24,7 @@ export async function getParticipants() {
 export async function getDashboardStats() {
   const settings = await ensureSettings();
   const today = todayInCampTimezone(settings.timezone);
-  const campDay = campDayFor(today);
+  const campDay = campDayDisplay(today, settings.totalDays);
   const [participants, attendanceToday, mealsToday, recentAttendance, recentMeals, teams] = await Promise.all([
     getParticipants(),
     prisma.attendanceRecord.findMany({ where: { campDate: today }, include: { participant: true } }),
@@ -79,12 +79,25 @@ export async function getDashboardStats() {
   };
 }
 
-export async function recordAttendance(payload: string, date: string, session: string) {
+export async function lookupParticipantByQr(payload: string) {
   const { parseQrPayload } = await import("@/lib/qr");
   const parsed = parseQrPayload(payload);
-  if (!parsed) return { ok: false, message: "Invalid Youth Camp QR code." };
-  const participant = await prisma.participant.findUnique({ where: { participantId: parsed.participantId } });
-  if (!participant || participant.qrToken !== parsed.qrToken) return { ok: false, message: "Participant was not found for this QR code." };
+  if (!parsed) return null;
+  const participant = await prisma.participant.findUnique({ where: { participantId: parsed.participantId }, include: { team: true } });
+  if (!participant || participant.qrToken !== parsed.qrToken) return null;
+  return participant;
+}
+
+export async function lookupParticipantByCode(participantCode: string) {
+  const settings = await ensureSettings();
+  const participantId = participantIdFromNumeric(participantCode, settings.participantIdPrefix);
+  if (!participantId) return null;
+  return prisma.participant.findUnique({ where: { participantId }, include: { team: true } });
+}
+
+export async function recordAttendance(payload: string, date: string, session: string) {
+  const participant = await lookupParticipantByQr(payload);
+  if (!participant) return { ok: false, message: "Participant was not found for this QR code." };
   return recordAttendanceForParticipant(participant.participantId, date, session, "QR_SCAN");
 }
 
@@ -104,6 +117,12 @@ export async function recordAttendanceForParticipant(participantCode: string, da
   const campDate = dateOnly(date);
   if (!isCampDate(campDate)) return { ok: false, message: "Attendance can only be recorded from July 8 through July 18, 2026." };
   const campDay = campDayFor(campDate);
+  const existing = await prisma.attendanceRecord.findUnique({
+    where: { participantId_campDate_session: { participantId: participant.id, campDate, session } }
+  });
+  if (existing) {
+    return { ok: false, message: "Attendance has already been recorded for this participant for this session today.", participant: { name: participant.fullName, id: participant.participantId } };
+  }
   try {
     const record = await prisma.$transaction(async (tx) => {
       const attendance = await tx.attendanceRecord.create({
@@ -125,24 +144,36 @@ export async function recordAttendanceForParticipant(participantCode: string, da
     return { ok: true, message: "Attendance recorded.", participant: { name: participant.fullName, id: participant.participantId }, record };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { ok: false, message: "Attendance has already been recorded for this participant for the selected session.", participant: { name: participant.fullName, id: participant.participantId } };
+      return { ok: false, message: "Attendance has already been recorded for this participant for this session today.", participant: { name: participant.fullName, id: participant.participantId } };
     }
     throw error;
   }
 }
 
 export async function recordMeal(payload: string, date: string, meal: string) {
-  const { parseQrPayload } = await import("@/lib/qr");
-  const parsed = parseQrPayload(payload);
-  if (!parsed) return { ok: false, message: "Invalid Youth Camp QR code." };
-  const participant = await prisma.participant.findUnique({ where: { participantId: parsed.participantId } });
-  if (!participant || participant.qrToken !== parsed.qrToken) return { ok: false, message: "Participant was not found for this QR code." };
+  const participant = await lookupParticipantByQr(payload);
+  if (!participant) return { ok: false, message: "Participant was not found for this QR code." };
+  return recordMealForParticipant(participant.participantId, date, meal, "QR_SCAN");
+}
+
+export async function recordMealForParticipant(participantCode: string, date: string, meal: string, source = "MANUAL_ID") {
+  const settings = await ensureSettings();
+  const participantId = participantIdFromNumeric(participantCode, settings.participantIdPrefix);
+  if (!participantId) return { ok: false, message: "Enter a valid participant number." };
+  const participant = await prisma.participant.findUnique({ where: { participantId } });
+  if (!participant) return { ok: false, message: `No participant found for ${participantId}.` };
   const campDate = dateOnly(date);
   if (!isCampDate(campDate)) return { ok: false, message: "Meals can only be recorded from July 8 through July 18, 2026." };
   const campDay = campDayFor(campDate);
+  const existing = await prisma.mealRecord.findUnique({
+    where: { participantId_campDate_meal: { participantId: participant.id, campDate, meal } }
+  });
+  if (existing) {
+    return { ok: false, message: `This participant has already been served ${mealLabel(meal)} today.`, participant: { name: participant.fullName, id: participant.participantId } };
+  }
   try {
     const record = await prisma.$transaction(async (tx) => {
-      const mealRecord = await tx.mealRecord.create({ data: { participantId: participant.id, campDate, campDay, meal, source: "QR_SCAN" } });
+      const mealRecord = await tx.mealRecord.create({ data: { participantId: participant.id, campDate, campDay, meal, source } });
       await tx.participant.update({
         where: { id: participant.id },
         data: { checkedIn: true, checkedInAt: participant.checkedInAt ?? new Date() }
@@ -152,10 +183,28 @@ export async function recordMeal(payload: string, date: string, meal: string) {
     return { ok: true, message: "Meal recorded.", participant: { name: participant.fullName, id: participant.participantId }, record };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { ok: false, message: "This participant has already received that meal.", participant: { name: participant.fullName, id: participant.participantId } };
+      return { ok: false, message: `This participant has already been served ${mealLabel(meal)} today.`, participant: { name: participant.fullName, id: participant.participantId } };
     }
     throw error;
   }
+}
+
+function mealLabel(meal: string) {
+  return meal.slice(0, 1).toUpperCase() + meal.slice(1).toLowerCase();
+}
+
+export async function participantActionStatus(participantDbId: string, date: string, action: "attendance" | "meal", value: string) {
+  const campDate = dateOnly(date);
+  if (action === "attendance") {
+    const exists = await prisma.attendanceRecord.findUnique({
+      where: { participantId_campDate_session: { participantId: participantDbId, campDate, session: value } }
+    });
+    return exists ? "Recorded" : "Not recorded";
+  }
+  const exists = await prisma.mealRecord.findUnique({
+    where: { participantId_campDate_meal: { participantId: participantDbId, campDate, meal: value } }
+  });
+  return exists ? "Served" : "Not served";
 }
 
 export async function checkInParticipant(participantCode: string) {

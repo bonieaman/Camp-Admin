@@ -3,7 +3,7 @@
 import { Download } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { toggleCheckIn, updateParticipantTeam } from "@/app/(admin)/actions";
+import { createChallengeRecord, deleteChallengeRecord, toggleCheckIn, updateParticipantTeam } from "@/app/(admin)/actions";
 
 type Row = { id: string; campDay: number; session?: string; meal?: string; challenge?: string; scannedAt?: Date | string; completedAt?: Date | string };
 
@@ -108,7 +108,32 @@ export function ProfileTabs({
         {tab === "Attendance" ? recordList(participant.attendanceRecords, "attendance") : null}
         {tab === "Meals" ? recordList(participant.mealRecords, "meal") : null}
         {tab === "Outreach" ? recordList(participant.outreachRecords, "outreach") : null}
-        {tab === "Digital Evangelism" ? recordList(participant.challengeRecords, "challenge") : null}
+        {tab === "Digital Evangelism" ? (
+          <div className="space-y-4">
+            <form action={createChallengeRecord} className="grid gap-3 rounded-xl bg-slate-50 p-4 md:grid-cols-[1fr_180px_auto]">
+              <input type="hidden" name="participantId" value={participant.id} />
+              <input className="field" name="challenge" placeholder="Challenge name" />
+              <input className="field" name="date" type="date" defaultValue="2026-07-08" />
+              <button className="btn btn-primary">Add</button>
+            </form>
+            <div className="grid gap-3">
+              {participant.challengeRecords.map((record: Row) => (
+                <div key={record.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
+                  <div>
+                    <p className="font-black text-ink">Day {record.campDay}</p>
+                    <p className="text-sm font-semibold text-slate-500">{record.challenge}</p>
+                  </div>
+                  <form action={deleteChallengeRecord} onSubmit={(event) => { if (!window.confirm("Delete this challenge record?")) event.preventDefault(); }}>
+                    <input type="hidden" name="id" value={record.id} />
+                    <input type="hidden" name="participantId" value={participant.id} />
+                    <button className="btn btn-secondary py-2 text-red-700">Delete</button>
+                  </form>
+                </div>
+              ))}
+              {!participant.challengeRecords.length ? <p className="text-sm font-semibold text-slate-500">No records yet.</p> : null}
+            </div>
+          </div>
+        ) : null}
         {tab === "Certificate" ? (
           <div>
             <p className="mb-3 text-lg font-black text-ink">{status.eligible ? "Participant is certificate eligible." : "Remaining requirements"}</p>

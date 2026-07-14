@@ -8,6 +8,9 @@ export default function MealsPage() {
     <ScannerPanel
       title="Meal QR Scanner"
       endpoint="/api/meals"
+      action="meal"
+      confirmLabel="Record Meal"
+      manualMode="participant-number"
       controls={
         <>
           <label className="block">

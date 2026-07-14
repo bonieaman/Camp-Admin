@@ -12,11 +12,11 @@ export function dateOnly(date: Date | string) {
 export function campDayFor(date: Date | string) {
   const current = dateOnly(date).getTime();
   const start = dateOnly(CAMP_START).getTime();
-  return Math.max(1, Math.floor((current - start) / 86400000) + 1);
+  return Math.floor((current - start) / 86400000) + 1;
 }
 
 export function campDayDisplay(date: Date | string, totalDays = 11) {
-  return Math.min(totalDays, Math.max(1, campDayFor(date)));
+  return Math.min(totalDays, Math.max(0, campDayFor(date)));
 }
 
 export function isCampDate(date: Date | string) {
