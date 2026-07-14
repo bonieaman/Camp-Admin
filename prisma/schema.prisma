@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Setting {
+  id                   String   @id @default("camp")
+  campName             String   @default("Youth Camp 2026")
+  startDate            DateTime
+  endDate              DateTime
+  totalDays            Int      @default(11)
+  timezone             String   @default("Africa/Addis_Ababa")
+  participantIdPrefix  String   @default("YC-2026")
+  finalRequiredDate    DateTime
+  finalRequiredSession String   @default("AFTERNOON")
+  updatedAt            DateTime @updatedAt
+}
+
+model Team {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  participants Participant[]
+  createdAt    DateTime      @default(now())
+}
+
+model Participant {
+  id                    String                @id @default(cuid())
+  participantId         String                @unique
+  fullName              String
+  fatherName            String?
+  age                   Int?
+  gender                String?
+  phone                 String?
+  church                String?
+  registrationStatus    String                @default("Registered")
+  checkedIn             Boolean               @default(false)
+  checkedInAt           DateTime?
+  disciplinaryClearance Boolean               @default(true)
+  qrToken               String                @unique
+  teamId                String?
+  team                  Team?                 @relation(fields: [teamId], references: [id])
+  attendanceRecords     AttendanceRecord[]
+  mealRecords           MealRecord[]
+  outreachRecords       OutreachRecord[]
+  challengeRecords      ChallengeRecord[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([fullName])
+  @@index([fatherName])
+  @@index([phone])
+  @@index([church])
+  @@index([checkedIn])
+}
+
+model AttendanceRecord {
+  id            String      @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  campDate      DateTime
+  campDay       Int
+  session       String
+  scannedAt     DateTime    @default(now())
+  source        String      @default("QR_SCAN")
+
+  @@unique([participantId, campDate, session])
+  @@index([campDate, session])
+}
+
+model MealRecord {
+  id            String      @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  campDate      DateTime
+  campDay       Int
+  meal          String
+  scannedAt     DateTime    @default(now())
+  source        String      @default("QR_SCAN")
+
+  @@unique([participantId, campDate, meal])
+  @@index([campDate, meal])
+}
+
+model OutreachRecord {
+  id            String      @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  campDate      DateTime
+  campDay       Int
+  completedAt   DateTime    @default(now())
+  source        String      @default("AFTERNOON_ATTENDANCE")
+
+  @@unique([participantId, campDate])
+  @@index([campDate])
+}
+
+model ChallengeRecord {
+  id            String      @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  campDate      DateTime
+  campDay       Int
+  challenge     String
+  completedAt   DateTime    @default(now())
+
+  @@unique([participantId, campDate, challenge])
+  @@index([campDate])
+}
