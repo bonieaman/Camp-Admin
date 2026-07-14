@@ -1,4 +1,4 @@
--- CreateTable
+﻿-- CreateTable
 CREATE TABLE "Setting" (
     "id" TEXT NOT NULL DEFAULT 'camp',
     "campName" TEXT NOT NULL DEFAULT 'Youth Camp 2026',
@@ -18,6 +18,7 @@ CREATE TABLE "Setting" (
 CREATE TABLE "Team" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "qrToken" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Team_pkey" PRIMARY KEY ("id")
@@ -54,6 +55,7 @@ CREATE TABLE "AttendanceRecord" (
     "session" TEXT NOT NULL,
     "scannedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "source" TEXT NOT NULL DEFAULT 'QR_SCAN',
+    "recordedBy" TEXT,
 
     CONSTRAINT "AttendanceRecord_pkey" PRIMARY KEY ("id")
 );
@@ -67,6 +69,7 @@ CREATE TABLE "MealRecord" (
     "meal" TEXT NOT NULL,
     "scannedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "source" TEXT NOT NULL DEFAULT 'QR_SCAN',
+    "recordedBy" TEXT,
 
     CONSTRAINT "MealRecord_pkey" PRIMARY KEY ("id")
 );
@@ -79,6 +82,7 @@ CREATE TABLE "OutreachRecord" (
     "campDay" INTEGER NOT NULL,
     "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "source" TEXT NOT NULL DEFAULT 'AFTERNOON_ATTENDANCE',
+    "recordedBy" TEXT,
 
     CONSTRAINT "OutreachRecord_pkey" PRIMARY KEY ("id")
 );
@@ -91,12 +95,28 @@ CREATE TABLE "ChallengeRecord" (
     "campDay" INTEGER NOT NULL,
     "challenge" TEXT NOT NULL,
     "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "recordedBy" TEXT,
 
     CONSTRAINT "ChallengeRecord_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "TeamActivity" (
+    "id" TEXT NOT NULL,
+    "teamId" TEXT NOT NULL,
+    "activityType" TEXT NOT NULL,
+    "activityDate" TIMESTAMP(3) NOT NULL,
+    "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "recordedBy" TEXT,
+
+    CONSTRAINT "TeamActivity_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Team_name_key" ON "Team"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Team_qrToken_key" ON "Team"("qrToken");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Participant_participantId_key" ON "Participant"("participantId");
@@ -143,6 +163,12 @@ CREATE INDEX "ChallengeRecord_campDate_idx" ON "ChallengeRecord"("campDate");
 -- CreateIndex
 CREATE UNIQUE INDEX "ChallengeRecord_participantId_campDate_challenge_key" ON "ChallengeRecord"("participantId", "campDate", "challenge");
 
+-- CreateIndex
+CREATE INDEX "TeamActivity_activityDate_activityType_idx" ON "TeamActivity"("activityDate", "activityType");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TeamActivity_teamId_activityDate_activityType_key" ON "TeamActivity"("teamId", "activityDate", "activityType");
+
 -- AddForeignKey
 ALTER TABLE "Participant" ADD CONSTRAINT "Participant_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -157,3 +183,7 @@ ALTER TABLE "OutreachRecord" ADD CONSTRAINT "OutreachRecord_participantId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "ChallengeRecord" ADD CONSTRAINT "ChallengeRecord_participantId_fkey" FOREIGN KEY ("participantId") REFERENCES "Participant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TeamActivity" ADD CONSTRAINT "TeamActivity_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

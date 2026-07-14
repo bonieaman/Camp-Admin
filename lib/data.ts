@@ -21,16 +21,22 @@ export async function getParticipants() {
     .sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }));
 }
 
-export async function getDashboardStats() {
+const DASHBOARD_ACTIVITY_PAGE_SIZE = 6;
+
+export async function getDashboardStats({ attendancePage = 1, mealPage = 1 } = {}) {
   const settings = await ensureSettings();
   const today = todayInCampTimezone(settings.timezone);
   const campDay = campDayDisplay(today, settings.totalDays);
-  const [participants, attendanceToday, mealsToday, recentAttendance, recentMeals, teams] = await Promise.all([
+  const attendanceSkip = Math.max(0, attendancePage - 1) * DASHBOARD_ACTIVITY_PAGE_SIZE;
+  const mealSkip = Math.max(0, mealPage - 1) * DASHBOARD_ACTIVITY_PAGE_SIZE;
+  const [participants, attendanceToday, mealsToday, recentAttendance, recentMeals, recentAttendanceCount, recentMealsCount, teams] = await Promise.all([
     getParticipants(),
     prisma.attendanceRecord.findMany({ where: { campDate: today }, include: { participant: true } }),
     prisma.mealRecord.findMany({ where: { campDate: today }, include: { participant: true } }),
-    prisma.attendanceRecord.findMany({ take: 6, orderBy: { scannedAt: "desc" }, include: { participant: true } }),
-    prisma.mealRecord.findMany({ take: 6, orderBy: { scannedAt: "desc" }, include: { participant: true } }),
+    prisma.attendanceRecord.findMany({ skip: attendanceSkip, take: DASHBOARD_ACTIVITY_PAGE_SIZE, orderBy: { scannedAt: "desc" }, include: { participant: { include: { team: true } } } }),
+    prisma.mealRecord.findMany({ skip: mealSkip, take: DASHBOARD_ACTIVITY_PAGE_SIZE, orderBy: { scannedAt: "desc" }, include: { participant: { include: { team: true } } } }),
+    prisma.attendanceRecord.count(),
+    prisma.mealRecord.count(),
     prisma.team.findMany({ include: { participants: { include: participantInclude } }, orderBy: { name: "asc" } })
   ]);
 
@@ -62,6 +68,8 @@ export async function getDashboardStats() {
     },
     recentAttendance,
     recentMeals,
+    recentAttendanceMeta: { page: attendancePage, pageSize: DASHBOARD_ACTIVITY_PAGE_SIZE, total: recentAttendanceCount },
+    recentMealsMeta: { page: mealPage, pageSize: DASHBOARD_ACTIVITY_PAGE_SIZE, total: recentMealsCount },
     teams: teams.map((team) => {
       const members = team.participants.map((p) => ({ ...p, certificate: certificateStatus(p) }));
       const count = members.length || 1;
@@ -95,10 +103,10 @@ export async function lookupParticipantByCode(participantCode: string) {
   return prisma.participant.findUnique({ where: { participantId }, include: { team: true } });
 }
 
-export async function recordAttendance(payload: string, date: string, session: string) {
+export async function recordAttendance(payload: string, date: string, session: string, recordedBy?: string) {
   const participant = await lookupParticipantByQr(payload);
   if (!participant) return { ok: false, message: "Participant was not found for this QR code." };
-  return recordAttendanceForParticipant(participant.participantId, date, session, "QR_SCAN");
+  return recordAttendanceForParticipant(participant.participantId, date, session, "QR_SCAN", recordedBy);
 }
 
 export function participantIdFromNumeric(value: string, prefix = "YC-2026") {
@@ -108,7 +116,7 @@ export function participantIdFromNumeric(value: string, prefix = "YC-2026") {
   return `${prefix}-${String(Number(trimmed)).padStart(3, "0")}`;
 }
 
-export async function recordAttendanceForParticipant(participantCode: string, date: string, session: string, source = "MANUAL_ID") {
+export async function recordAttendanceForParticipant(participantCode: string, date: string, session: string, source = "MANUAL_ID", recordedBy?: string) {
   const settings = await ensureSettings();
   const participantId = participantIdFromNumeric(participantCode, settings.participantIdPrefix);
   if (!participantId) return { ok: false, message: "Enter a valid participant number." };
@@ -126,12 +134,12 @@ export async function recordAttendanceForParticipant(participantCode: string, da
   try {
     const record = await prisma.$transaction(async (tx) => {
       const attendance = await tx.attendanceRecord.create({
-        data: { participantId: participant.id, campDate, campDay, session, source }
+        data: { participantId: participant.id, campDate, campDay, session, source, recordedBy }
       });
       if (session === "AFTERNOON") {
         await tx.outreachRecord.upsert({
           where: { participantId_campDate: { participantId: participant.id, campDate } },
-          create: { participantId: participant.id, campDate, campDay },
+          create: { participantId: participant.id, campDate, campDay, recordedBy },
           update: {}
         });
       }
@@ -150,13 +158,13 @@ export async function recordAttendanceForParticipant(participantCode: string, da
   }
 }
 
-export async function recordMeal(payload: string, date: string, meal: string) {
+export async function recordMeal(payload: string, date: string, meal: string, recordedBy?: string) {
   const participant = await lookupParticipantByQr(payload);
   if (!participant) return { ok: false, message: "Participant was not found for this QR code." };
-  return recordMealForParticipant(participant.participantId, date, meal, "QR_SCAN");
+  return recordMealForParticipant(participant.participantId, date, meal, "QR_SCAN", recordedBy);
 }
 
-export async function recordMealForParticipant(participantCode: string, date: string, meal: string, source = "MANUAL_ID") {
+export async function recordMealForParticipant(participantCode: string, date: string, meal: string, source = "MANUAL_ID", recordedBy?: string) {
   const settings = await ensureSettings();
   const participantId = participantIdFromNumeric(participantCode, settings.participantIdPrefix);
   if (!participantId) return { ok: false, message: "Enter a valid participant number." };
@@ -173,7 +181,7 @@ export async function recordMealForParticipant(participantCode: string, date: st
   }
   try {
     const record = await prisma.$transaction(async (tx) => {
-      const mealRecord = await tx.mealRecord.create({ data: { participantId: participant.id, campDate, campDay, meal, source } });
+      const mealRecord = await tx.mealRecord.create({ data: { participantId: participant.id, campDate, campDay, meal, source, recordedBy } });
       await tx.participant.update({
         where: { id: participant.id },
         data: { checkedIn: true, checkedInAt: participant.checkedInAt ?? new Date() }
@@ -221,4 +229,93 @@ export async function checkInParticipant(participantCode: string) {
     data: { checkedIn: true, checkedInAt: new Date() }
   });
   return { ok: true, message: "Participant checked in.", participant: { name: updated.fullName, id: updated.participantId } };
+}
+
+export type TeamActivityType = "OUTREACH" | "DIGITAL_EVANGELISM";
+
+const teamActivityLabels: Record<TeamActivityType, string> = {
+  OUTREACH: "Outreach",
+  DIGITAL_EVANGELISM: "Digital Evangelism"
+};
+
+export async function lookupTeamActivity(payload: string, selectedTeamId: string, date: string, activityType: TeamActivityType) {
+  const { lookupTeamByQr } = await import("@/lib/team-qr");
+  const scannedTeam = await lookupTeamByQr(payload);
+  if (!scannedTeam) return { ok: false, message: "Team was not found for this QR code." };
+  if (scannedTeam.id !== selectedTeamId) return { ok: false, message: "The scanned QR code does not match the selected team." };
+  const campDate = dateOnly(date);
+  if (!isCampDate(campDate)) return { ok: false, message: `${teamActivityLabels[activityType]} can only be recorded from July 8 through July 18, 2026.` };
+  const existing = await prisma.teamActivity.findUnique({
+    where: { teamId_activityDate_activityType: { teamId: scannedTeam.id, activityDate: campDate, activityType } }
+  });
+  return {
+    ok: true,
+    team: { id: scannedTeam.id, name: scannedTeam.name, participants: scannedTeam._count.participants },
+    status: existing ? "Recorded" : "Not recorded"
+  };
+}
+
+export async function recordTeamActivity(teamId: string, date: string, activityType: TeamActivityType, recordedBy?: string) {
+  const campDate = dateOnly(date);
+  if (!isCampDate(campDate)) return { ok: false, message: `${teamActivityLabels[activityType]} can only be recorded from July 8 through July 18, 2026.` };
+  const team = await prisma.team.findUnique({ where: { id: teamId }, include: { participants: { select: { id: true } } } });
+  if (!team) return { ok: false, message: "Select a valid team." };
+  if (!team.participants.length) return { ok: false, message: "This team has no participants to record." };
+  const existing = await prisma.teamActivity.findUnique({
+    where: { teamId_activityDate_activityType: { teamId, activityDate: campDate, activityType } }
+  });
+  if (existing) {
+    return { ok: false, message: activityType === "OUTREACH" ? "This team has already completed Outreach today." : "This team has already completed Digital Evangelism today." };
+  }
+
+  const campDay = campDayFor(campDate);
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.teamActivity.create({ data: { teamId, activityDate: campDate, activityType, recordedBy } });
+      if (activityType === "OUTREACH") {
+        await tx.outreachRecord.createMany({
+          data: team.participants.map((participant) => ({
+            participantId: participant.id,
+            campDate,
+            campDay,
+            source: "TEAM_OUTREACH",
+            recordedBy
+          })),
+          skipDuplicates: true
+        });
+      } else {
+        await tx.challengeRecord.createMany({
+          data: team.participants.map((participant) => ({
+            participantId: participant.id,
+            campDate,
+            campDay,
+            challenge: "DIGITAL_EVANGELISM",
+            recordedBy
+          })),
+          skipDuplicates: true
+        });
+      }
+    });
+    return { ok: true, message: `${teamActivityLabels[activityType]} recorded for ${team.name}.`, team: { name: team.name } };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { ok: false, message: activityType === "OUTREACH" ? "This team has already completed Outreach today." : "This team has already completed Digital Evangelism today." };
+    }
+    throw error;
+  }
+}
+
+export async function getTeamActivityPage(activityType: TeamActivityType) {
+  const settings = await ensureSettings();
+  const today = todayInCampTimezone(settings.timezone);
+  const [teams, history] = await Promise.all([
+    prisma.team.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { participants: true } } } }),
+    prisma.teamActivity.findMany({
+      where: { activityType },
+      take: 12,
+      orderBy: { recordedAt: "desc" },
+      include: { team: { include: { _count: { select: { participants: true } } } } }
+    })
+  ]);
+  return { today, teams, history };
 }

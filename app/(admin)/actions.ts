@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { destroySession } from "@/lib/auth";
+import { destroySession, getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function logoutAction() {
@@ -87,6 +87,7 @@ export async function deleteTeam(formData: FormData) {
 }
 
 export async function createChallengeRecord(formData: FormData) {
+  const session = await getSession();
   const participantId = String(formData.get("participantId") ?? "");
   const challenge = String(formData.get("challenge") ?? "").trim();
   const date = String(formData.get("date") ?? "");
@@ -95,7 +96,7 @@ export async function createChallengeRecord(formData: FormData) {
   const { campDayFor } = await import("@/lib/camp");
   await prisma.challengeRecord.upsert({
     where: { participantId_campDate_challenge: { participantId, campDate, challenge } },
-    create: { participantId, campDate, campDay: campDayFor(campDate), challenge },
+    create: { participantId, campDate, campDay: campDayFor(campDate), challenge, recordedBy: session?.directorId },
     update: {}
   });
   revalidatePath("/dashboard");

@@ -11,6 +11,8 @@ const titles: Record<string, string> = {
   participants: "Participants",
   attendance: "Attendance",
   meals: "Meals",
+  outreach: "Outreach",
+  "digital-evangelism": "Digital Evangelism",
   certificates: "Certificates",
   settings: "Settings"
 };
@@ -23,7 +25,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   const campDay = campDayDisplay(today, settings.totalDays);
 
   return (
-    <AdminShell title="Youth Camp 2026" campLine={`Day ${campDay} / ${settings.totalDays} • ${settings.timezone}`}>
+    <AdminShell title="Youth Camp 2026" campLine={`Day ${campDay} / ${settings.totalDays} - ${settings.timezone}`} role={session.role}>
       <RealtimeRefresh interval={2500} />
       {children}
     </AdminShell>

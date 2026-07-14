@@ -21,34 +21,36 @@ model Setting {
 }
 
 model Team {
-  id           String        @id @default(cuid())
-  name         String        @unique
+  id           String         @id @default(cuid())
+  name         String         @unique
+  qrToken      String         @unique @default(cuid())
   participants Participant[]
-  createdAt    DateTime      @default(now())
+  activities   TeamActivity[]
+  createdAt    DateTime       @default(now())
 }
 
 model Participant {
-  id                    String                @id @default(cuid())
-  participantId         String                @unique
+  id                    String             @id @default(cuid())
+  participantId         String             @unique
   fullName              String
   fatherName            String?
   age                   Int?
   gender                String?
   phone                 String?
   church                String?
-  registrationStatus    String                @default("Registered")
-  checkedIn             Boolean               @default(false)
+  registrationStatus    String             @default("Registered")
+  checkedIn             Boolean            @default(false)
   checkedInAt           DateTime?
-  disciplinaryClearance Boolean               @default(true)
-  qrToken               String                @unique
+  disciplinaryClearance Boolean            @default(true)
+  qrToken               String             @unique
   teamId                String?
-  team                  Team?                 @relation(fields: [teamId], references: [id])
+  team                  Team?              @relation(fields: [teamId], references: [id])
   attendanceRecords     AttendanceRecord[]
   mealRecords           MealRecord[]
   outreachRecords       OutreachRecord[]
   challengeRecords      ChallengeRecord[]
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   @@index([fullName])
   @@index([fatherName])
@@ -66,6 +68,7 @@ model AttendanceRecord {
   session       String
   scannedAt     DateTime    @default(now())
   source        String      @default("QR_SCAN")
+  recordedBy    String?
 
   @@unique([participantId, campDate, session])
   @@index([campDate, session])
@@ -80,6 +83,7 @@ model MealRecord {
   meal          String
   scannedAt     DateTime    @default(now())
   source        String      @default("QR_SCAN")
+  recordedBy    String?
 
   @@unique([participantId, campDate, meal])
   @@index([campDate, meal])
@@ -93,6 +97,7 @@ model OutreachRecord {
   campDay       Int
   completedAt   DateTime    @default(now())
   source        String      @default("AFTERNOON_ATTENDANCE")
+  recordedBy    String?
 
   @@unique([participantId, campDate])
   @@index([campDate])
@@ -106,7 +111,21 @@ model ChallengeRecord {
   campDay       Int
   challenge     String
   completedAt   DateTime    @default(now())
+  recordedBy    String?
 
   @@unique([participantId, campDate, challenge])
   @@index([campDate])
+}
+
+model TeamActivity {
+  id           String   @id @default(cuid())
+  teamId       String
+  team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  activityType String
+  activityDate DateTime
+  recordedAt   DateTime @default(now())
+  recordedBy   String?
+
+  @@unique([teamId, activityDate, activityType])
+  @@index([activityDate, activityType])
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { createTeam, deleteTeam, updateSettings, updateTeam } from "@/app/(admin)/actions";
 
 type Settings = {
@@ -21,6 +21,16 @@ function ymd(value: Date | string) {
 }
 
 export function SettingsManager({ settings, teams }: { settings: Settings; teams: Team[] }) {
+  async function downloadTeamQr(team: Team) {
+    const response = await fetch(`/api/teams/${team.id}/qr`);
+    const result = await response.json();
+    if (!result.ok) return;
+    const link = document.createElement("a");
+    link.href = result.dataUrl;
+    link.download = `${team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "team"}-qr.png`;
+    link.click();
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -53,6 +63,9 @@ export function SettingsManager({ settings, teams }: { settings: Settings; teams
                 <input type="hidden" name="id" value={team.id} />
                 <input className="field min-w-0 flex-1" name="name" defaultValue={team.name} />
                 <span className="status status-slate">{team._count.participants} participants</span>
+                <button type="button" className="btn btn-secondary py-2" onClick={() => downloadTeamQr(team)}>
+                  <Download className="h-4 w-4" />QR Code
+                </button>
                 <button className="btn btn-secondary py-2">Save</button>
               </form>
               <form
