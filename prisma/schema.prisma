@@ -20,9 +20,19 @@ model Setting {
   updatedAt            DateTime @updatedAt
 }
 
+model TeamCounter {
+  id         String   @id @default("team")
+  nextNumber Int      @default(1)
+  updatedAt  DateTime @updatedAt
+}
+
 model Team {
   id           String         @id @default(cuid())
+  teamCode     String         @unique
   name         String         @unique
+  description  String?
+  leader       String?
+  color        String?
   qrToken      String         @unique @default(cuid())
   participants Participant[]
   activities   TeamActivity[]

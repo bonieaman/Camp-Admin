@@ -13,6 +13,7 @@ const pageAccess: Record<AdminRole, string[]> = {
     "/participants",
     "/attendance",
     "/meals",
+    "/teams",
     "/outreach",
     "/digital-evangelism",
     "/certificates",

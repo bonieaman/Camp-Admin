@@ -19,7 +19,7 @@ function forbidden() {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const protectedPath = pathname.startsWith("/api") || ["/dashboard", "/participants", "/attendance", "/meals", "/outreach", "/digital-evangelism", "/certificates", "/settings"].some((route) => pathname === route || pathname.startsWith(`${route}/`));
+  const protectedPath = pathname.startsWith("/api") || ["/dashboard", "/participants", "/attendance", "/meals", "/teams", "/outreach", "/digital-evangelism", "/certificates", "/settings"].some((route) => pathname === route || pathname.startsWith(`${route}/`));
   if (!protectedPath) return NextResponse.next();
 
   const secret = authSecret();
@@ -44,5 +44,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/participants/:path*", "/attendance/:path*", "/meals/:path*", "/outreach/:path*", "/digital-evangelism/:path*", "/certificates/:path*", "/settings/:path*", "/api/:path*"]
+  matcher: ["/dashboard/:path*", "/participants/:path*", "/attendance/:path*", "/meals/:path*", "/teams/:path*", "/outreach/:path*", "/digital-evangelism/:path*", "/certificates/:path*", "/settings/:path*", "/api/:path*"]
 };

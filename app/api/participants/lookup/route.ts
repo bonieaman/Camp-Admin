@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       dbId: participant.id,
       id: participant.participantId,
       name: participant.fullName,
-      team: participant.team?.name ?? "Unassigned",
+      team: participant.team?.name ?? "No Team Assigned",
       church: participant.church ?? "-",
       gender: participant.gender ?? "-",
       photoUrl: null

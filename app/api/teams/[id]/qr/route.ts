@@ -15,5 +15,5 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     margin: 2,
     errorCorrectionLevel: "H"
   });
-  return NextResponse.json({ ok: true, team: { id: team.id, name: team.name }, dataUrl });
+  return NextResponse.json({ ok: true, team: { id: team.id, teamCode: team.teamCode, name: team.name }, dataUrl });
 }

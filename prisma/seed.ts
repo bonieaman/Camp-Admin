@@ -18,7 +18,6 @@ async function main() {
       finalRequiredSession: "AFTERNOON"
     }
   });
-  await prisma.team.upsert({ where: { name: "Unassigned" }, create: { name: "Unassigned" }, update: {} });
 }
 
 main().finally(() => prisma.$disconnect());

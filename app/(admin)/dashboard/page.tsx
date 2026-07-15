@@ -95,7 +95,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     <tr key={record.id} className="border-b border-slate-100">
                       <td className="px-3 py-4 font-black text-ink">{record.participant.fullName}</td>
                       <td className="px-3 py-4 font-bold text-royal">{record.participant.participantId}</td>
-                      <td className="px-3 py-4 font-bold">{record.participant.team?.name ?? "Unassigned"}</td>
+                      <td className="px-3 py-4 font-bold">{record.participant.team?.name ?? "No Team Assigned"}</td>
                       <td className="px-3 py-4"><span className="status status-slate">{record.session}</span></td>
                       <td className="px-3 py-4 font-bold">{when.date}</td>
                       <td className="px-3 py-4 font-bold">{when.time}</td>
@@ -124,7 +124,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     <tr key={record.id} className="border-b border-slate-100">
                       <td className="px-3 py-4 font-black text-ink">{record.participant.fullName}</td>
                       <td className="px-3 py-4 font-bold text-royal">{record.participant.participantId}</td>
-                      <td className="px-3 py-4 font-bold">{record.participant.team?.name ?? "Unassigned"}</td>
+                      <td className="px-3 py-4 font-bold">{record.participant.team?.name ?? "No Team Assigned"}</td>
                       <td className="px-3 py-4"><span className="status status-green">{record.meal}</span></td>
                       <td className="px-3 py-4 font-bold">{when.date}</td>
                       <td className="px-3 py-4 font-bold">{when.time}</td>

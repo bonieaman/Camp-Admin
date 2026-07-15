@@ -250,7 +250,26 @@ export async function lookupTeamActivity(payload: string, selectedTeamId: string
   });
   return {
     ok: true,
-    team: { id: scannedTeam.id, name: scannedTeam.name, participants: scannedTeam._count.participants },
+    team: { id: scannedTeam.id, teamCode: scannedTeam.teamCode, name: scannedTeam.name, participants: scannedTeam._count.participants },
+    status: existing ? "Recorded" : "Not recorded"
+  };
+}
+
+export async function lookupTeamActivityByCode(teamCodeValue: string, selectedTeamId: string, date: string, activityType: TeamActivityType) {
+  const { teamCodeFromNumeric } = await import("@/lib/teams");
+  const teamCode = teamCodeFromNumeric(teamCodeValue);
+  if (!teamCode) return { ok: false, message: "Enter a valid team number." };
+  const team = await prisma.team.findUnique({ where: { teamCode }, include: { _count: { select: { participants: true } } } });
+  if (!team) return { ok: false, message: `No team found for ${teamCode}.` };
+  if (team.id !== selectedTeamId) return { ok: false, message: "The entered Team ID does not match the selected team." };
+  const campDate = dateOnly(date);
+  if (!isCampDate(campDate)) return { ok: false, message: `${teamActivityLabels[activityType]} can only be recorded from July 8 through July 18, 2026.` };
+  const existing = await prisma.teamActivity.findUnique({
+    where: { teamId_activityDate_activityType: { teamId: team.id, activityDate: campDate, activityType } }
+  });
+  return {
+    ok: true,
+    team: { id: team.id, teamCode: team.teamCode, name: team.name, participants: team._count.participants },
     status: existing ? "Recorded" : "Not recorded"
   };
 }

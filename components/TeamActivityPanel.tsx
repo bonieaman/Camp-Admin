@@ -3,12 +3,13 @@
 import { Camera, CheckCircle2, ScanLine, UsersRound } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-type Team = { id: string; name: string; _count: { participants: number } };
+type Team = { id: string; teamCode: string; name: string; _count: { participants: number } };
 type History = { id: string; activityDate: Date | string; recordedAt: Date | string; recordedBy: string | null; team: Team };
 type ActivityType = "OUTREACH" | "DIGITAL_EVANGELISM";
 
 type VerifiedTeam = {
   id: string;
+  teamCode: string;
   name: string;
   participants: number;
 };
@@ -36,6 +37,7 @@ export function TeamActivityPanel({
   const [status, setStatus] = useState("");
   const [message, setMessage] = useState("");
   const [payload, setPayload] = useState("");
+  const [teamNumber, setTeamNumber] = useState("");
   const [pending, setPending] = useState(false);
   const [scanning, setScanning] = useState(false);
 
@@ -53,14 +55,14 @@ export function TeamActivityPanel({
     }
   }
 
-  async function verify(decodedPayload: string) {
+  async function verify(decodedPayload: string, mode: "qr" | "manual" = "qr") {
     setPending(true);
     setMessage("");
     setVerified(null);
     const response = await fetch("/api/team-activity/lookup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ payload: decodedPayload, teamId, date, activityType })
+      body: JSON.stringify(mode === "manual" ? { teamCode: decodedPayload, teamId, date, activityType } : { payload: decodedPayload, teamId, date, activityType })
     });
     const result = await response.json();
     setPending(false);
@@ -68,7 +70,7 @@ export function TeamActivityPanel({
       setMessage(result.message);
       return;
     }
-    setPayload(decodedPayload);
+    if (mode === "qr") setPayload(decodedPayload);
     setVerified(result.team);
     setStatus(result.status);
   }
@@ -87,6 +89,7 @@ export function TeamActivityPanel({
     if (result.ok) {
       setVerified(null);
       setPayload("");
+      setTeamNumber("");
       window.dispatchEvent(new Event("yc:data-change"));
     }
   }
@@ -112,6 +115,7 @@ export function TeamActivityPanel({
     setVerified(null);
     setStatus("");
     setPayload("");
+    setTeamNumber("");
   }, [teamId, date, activityType]);
 
   useEffect(() => {
@@ -155,7 +159,7 @@ export function TeamActivityPanel({
               </div>
               <div>
                 <p className="font-black text-ink">{selectedTeam?.name ?? "No team selected"}</p>
-                <p className="text-sm font-bold text-slate-500">{selectedTeam?._count.participants ?? 0} participants</p>
+                <p className="text-sm font-bold text-slate-500">{selectedTeam?.teamCode ?? "No Team ID"} - {selectedTeam?._count.participants ?? 0} participants</p>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
@@ -166,10 +170,10 @@ export function TeamActivityPanel({
               <button className="btn btn-secondary" onClick={stopScanner}>Stop</button>
             </div>
             <label className="mt-4 block">
-              <span className="mb-2 block text-sm font-black text-slate-600">Manual QR payload</span>
-              <textarea className="field min-h-24" value={payload} onChange={(event) => setPayload(event.target.value)} placeholder="YC2026TEAM:team-id:secure-token" />
+              <span className="mb-2 block text-sm font-black text-slate-600">Team number</span>
+              <input className="field" inputMode="numeric" value={teamNumber} onChange={(event) => setTeamNumber(event.target.value)} placeholder="15" />
             </label>
-            <button className="btn btn-secondary mt-3 w-full" disabled={pending || !payload || !teamId} onClick={() => verify(payload)}>
+            <button className="btn btn-secondary mt-3 w-full" disabled={pending || !teamNumber || !teamId} onClick={() => verify(teamNumber, "manual")}>
               Verify Team
             </button>
           </div>
@@ -181,6 +185,7 @@ export function TeamActivityPanel({
             <h3 className="text-lg font-black text-ink">Confirm Team</h3>
             <div className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-4 text-sm">
               <div className="flex justify-between gap-3"><span className="font-bold text-slate-500">Team</span><span className="font-black text-ink">{verified.name}</span></div>
+              <div className="flex justify-between gap-3"><span className="font-bold text-slate-500">Team ID</span><span className="font-black text-ink">{verified.teamCode}</span></div>
               <div className="flex justify-between gap-3"><span className="font-bold text-slate-500">Participants</span><span className="font-black text-ink">{verified.participants}</span></div>
               <div className="flex justify-between gap-3"><span className="font-bold text-slate-500">Status</span><span className="font-black text-ink">{status}</span></div>
             </div>

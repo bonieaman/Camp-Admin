@@ -42,17 +42,11 @@ export function rowsFromWorkbook(buffer: Buffer) {
 
 export async function importParticipantRows(rows: Row[], client: ImportClient = defaultPrisma) {
   const settings = await ensureSettings();
-  const unassigned = await client.team.upsert({
-    where: { name: "Unassigned" },
-    create: { name: "Unassigned" },
-    update: {}
-  });
 
   const prepared = rows
     .map((row, sourceIndex) => {
       const fullName = pick(row, ["full name", "participant name", "name"]);
       const fatherName = pick(row, ["father", "father's", "fathers", "parent"]);
-      const teamName = pick(row, ["team", "group"]) || "Unassigned";
       const spreadsheetId = pick(row, ["participant id", "registration id"]);
       return {
         sourceIndex,
@@ -61,7 +55,6 @@ export async function importParticipantRows(rows: Row[], client: ImportClient = 
         fatherName,
         key: identityKey(fullName, fatherName),
         spreadsheetId,
-        teamName,
         phone: pick(row, ["phone", "mobile", "contact", "whatsapp"]) || null,
         age: Number(pick(row, ["age"])) || null,
         gender: pick(row, ["gender", "sex"]) || null,
@@ -98,11 +91,6 @@ export async function importParticipantRows(rows: Row[], client: ImportClient = 
       invalidRows.push(row.sourceIndex + 2);
       continue;
     }
-    const team = await client.team.upsert({
-      where: { name: row.teamName },
-      create: { name: row.teamName },
-      update: {}
-    });
     const matched = byIdentity.get(row.key) ?? (row.spreadsheetId ? preExistingByParticipantId.get(row.spreadsheetId) : undefined);
     const participantId = matched?.participantId ?? `${settings.participantIdPrefix}-${String(nextNumber++).padStart(3, "0")}`;
     const data = {
@@ -113,7 +101,7 @@ export async function importParticipantRows(rows: Row[], client: ImportClient = 
       phone: row.phone,
       church: row.church,
       registrationStatus: row.registrationStatus,
-      teamId: team.id || unassigned.id
+      teamId: matched?.teamId ?? null
     };
 
     if (matched) {

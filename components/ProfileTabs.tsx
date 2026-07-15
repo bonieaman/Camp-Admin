@@ -14,7 +14,7 @@ export function ProfileTabs({
 }: {
   participant: any;
   qr: string;
-  teams: { id: string; name: string }[];
+  teams: { id: string; teamCode?: string; name: string }[];
 }) {
   const [tab, setTab] = useState("Overview");
   const tabs = ["Overview", "Attendance", "Meals", "Outreach", "Digital Evangelism", "Certificate"];
@@ -54,7 +54,7 @@ export function ProfileTabs({
             <div>
               <p className="text-sm font-black uppercase text-royal">{participant.participantId}</p>
               <h2 className="mt-1 text-3xl font-black text-ink">{participant.fullName}</h2>
-              <p className="mt-2 text-sm font-bold text-slate-500">{participant.church ?? "Church not listed"} • {participant.gender ?? "Gender not listed"}</p>
+              <p className="mt-2 text-sm font-bold text-slate-500">{participant.church ?? "Church not listed"} - {participant.gender ?? "Gender not listed"}</p>
             </div>
             <span className={`status ${status.eligible ? "status-green" : "status-amber"}`}>{status.eligible ? "Certificate eligible" : "Not yet eligible"}</span>
           </div>
@@ -63,6 +63,8 @@ export function ProfileTabs({
               ["Age", participant.age ?? "-"],
               ["Phone", participant.phone ?? "-"],
               ["Registration", participant.registrationStatus],
+              ["Team", participant.team ? participant.team.name : "No Team Assigned"],
+              ["Team ID", participant.team?.teamCode ?? "-"],
               ["Check-in", participant.checkedIn ? "Checked in" : "Pending"],
               ["Check-in time", participant.checkedInAt ? new Date(participant.checkedInAt).toLocaleString() : "-"]
             ].map(([label, value]) => (
@@ -77,8 +79,8 @@ export function ProfileTabs({
               {participant.checkedIn ? "Undo check-in" : "Mark checked in"}
             </button>
             <select className="field select-premium max-w-xs" value={participant.teamId ?? ""} onChange={(e) => updateParticipantTeam(participant.id, e.target.value)}>
-              <option value="">Unassigned</option>
-              {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+              <option value="">No Team Assigned</option>
+              {teams.map((team) => <option key={team.id} value={team.id}>{team.teamCode ? `${team.teamCode} - ${team.name}` : team.name}</option>)}
             </select>
           </div>
         </div>

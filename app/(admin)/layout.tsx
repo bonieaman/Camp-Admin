@@ -11,6 +11,7 @@ const titles: Record<string, string> = {
   participants: "Participants",
   attendance: "Attendance",
   meals: "Meals",
+  teams: "Teams",
   outreach: "Outreach",
   "digital-evangelism": "Digital Evangelism",
   certificates: "Certificates",

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { destroySession, getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { cleanColor, nextTeamCode } from "@/lib/teams";
 
 export async function logoutAction() {
   await destroySession();
@@ -32,7 +33,20 @@ export async function updateParticipantTeam(participantDbId: string, teamId: str
 
 export async function createTeam(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  if (name) await prisma.team.upsert({ where: { name }, create: { name }, update: {} });
+  if (name) {
+    const existing = await prisma.team.findUnique({ where: { name } });
+    if (!existing) {
+      await prisma.team.create({
+        data: {
+          name,
+          teamCode: await nextTeamCode(),
+          description: String(formData.get("description") ?? "").trim() || null,
+          leader: String(formData.get("leader") ?? "").trim() || null,
+          color: cleanColor(String(formData.get("color") ?? ""))
+        }
+      });
+    }
+  }
   revalidatePath("/settings");
   revalidatePath("/dashboard");
 }
@@ -69,7 +83,17 @@ export async function updateSettings(formData: FormData) {
 export async function updateTeam(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
-  if (id && name) await prisma.team.update({ where: { id }, data: { name } });
+  if (id && name) {
+    await prisma.team.update({
+      where: { id },
+      data: {
+        name,
+        description: String(formData.get("description") ?? "").trim() || null,
+        leader: String(formData.get("leader") ?? "").trim() || null,
+        color: cleanColor(String(formData.get("color") ?? ""))
+      }
+    });
+  }
   revalidatePath("/settings");
   revalidatePath("/participants");
   revalidatePath("/dashboard");

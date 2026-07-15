@@ -27,18 +27,20 @@ export function CheckInParticipant() {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="min-w-0">
           <h2 className="text-lg font-black text-ink">Participant Check-In</h2>
           <p className="text-sm font-semibold text-slate-500">Record first arrival using only the numeric participant ID.</p>
         </div>
-        <BadgeCheck className="h-6 w-6 text-royal" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-royal/10 text-royal">
+          <BadgeCheck className="h-6 w-6" />
+        </div>
       </div>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <label className="relative min-w-0 flex-1">
-          <IdCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <IdCard className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
-            className="field pl-10"
+            className="field pl-11"
             inputMode="numeric"
             placeholder="15"
             value={participantCode}
@@ -48,7 +50,7 @@ export function CheckInParticipant() {
             }}
           />
         </label>
-        <button className="btn btn-primary" disabled={pending || !participantCode.trim()} onClick={checkIn}>
+        <button className="btn btn-primary justify-center sm:min-w-[140px]" disabled={pending || !participantCode.trim()} onClick={checkIn}>
           {pending ? "Checking in..." : "Check In"}
         </button>
       </div>

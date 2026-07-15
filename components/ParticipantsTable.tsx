@@ -17,11 +17,11 @@ type Participant = {
   checkedIn: boolean;
   checkedInAt?: Date | string | null;
   teamId?: string | null;
-  team: { id?: string; name: string } | null;
+  team: { id?: string; teamCode?: string; name: string } | null;
   certificate: { eligible: boolean };
 };
 
-type Team = { id: string; name: string };
+type Team = { id: string; teamCode?: string; name: string };
 type FormState = Partial<Participant> & { mode: "create" | "edit" };
 
 function uniq(values: (string | null | undefined)[]) {
@@ -30,6 +30,14 @@ function uniq(values: (string | null | undefined)[]) {
 
 function emptyForm(): FormState {
   return { mode: "create", fullName: "", fatherName: "", age: null, phone: "", church: "", gender: "", teamId: "", registrationStatus: "Registered" };
+}
+
+function genderMatches(stored: string | null, selected: string) {
+  if (!selected) return true;
+  const value = (stored ?? "").toLowerCase();
+  if (selected === "Female (ሴት)") return value.includes("female") || value.includes("ሴት");
+  if (selected === "Male (ወንድ)") return (value.includes("male") && !value.includes("female")) || value.includes("ወንድ");
+  return stored === selected;
 }
 
 export function ParticipantsTable({ participants, teams }: { participants: Participant[]; teams: Team[] }) {
@@ -52,7 +60,7 @@ export function ParticipantsTable({ participants, teams }: { participants: Parti
         text.includes(q) &&
         (!team || p.team?.name === team) &&
         (!church || p.church === church) &&
-        (!gender || p.gender === gender) &&
+        genderMatches(p.gender, gender) &&
         (!checkedIn || String(p.checkedIn) === checkedIn) &&
         (!eligible || String(p.certificate.eligible) === eligible)
       );
@@ -116,13 +124,13 @@ export function ParticipantsTable({ participants, teams }: { participants: Parti
       </div>
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
         <label className="relative md:col-span-2">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="field pl-10" placeholder="Search name, ID, or phone" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input className="field pl-11" placeholder="Search name, ID, or phone" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
         </label>
         {[
           ["Team", team, setTeam, uniq(participants.map((p) => p.team?.name))],
           ["Church", church, setChurch, uniq(participants.map((p) => p.church))],
-          ["Gender", gender, setGender, uniq(participants.map((p) => p.gender))]
+          ["Gender", gender, setGender, ["Female (ሴት)", "Male (ወንድ)"]]
         ].map(([label, value, setter, values]) => (
           <select key={label as string} className="field select-premium" value={value as string} onChange={(e) => { (setter as (value: string) => void)(e.target.value); setPage(1); }}>
             <option value="">{label as string}: All</option>
@@ -154,12 +162,12 @@ export function ParticipantsTable({ participants, teams }: { participants: Parti
             <input className="field" placeholder="Church" value={form.church ?? ""} onChange={(e) => setForm({ ...form, church: e.target.value })} />
             <select className="field select-premium" value={form.gender ?? ""} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
               <option value="">Gender</option>
-              <option>Female</option>
-              <option>Male</option>
+              <option>Female (ሴት)</option>
+              <option>Male (ወንድ)</option>
             </select>
             <select className="field select-premium" value={form.teamId ?? ""} onChange={(e) => setForm({ ...form, teamId: e.target.value })}>
-              <option value="">Unassigned</option>
-              {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+              <option value="">No Team Assigned</option>
+              {teams.map((team) => <option key={team.id} value={team.id}>{team.teamCode ? `${team.teamCode} - ${team.name}` : team.name}</option>)}
             </select>
             <input className="field" placeholder="Registration status" value={form.registrationStatus ?? ""} onChange={(e) => setForm({ ...form, registrationStatus: e.target.value })} />
           </div>
@@ -176,7 +184,7 @@ export function ParticipantsTable({ participants, teams }: { participants: Parti
               <tr key={p.id} className="border-b border-slate-100">
                 <td className="px-3 py-4 font-black text-royal">{p.participantId}</td>
                 <td className="px-3 py-4 font-black text-ink">{p.fullName}</td>
-                <td className="px-3 py-4 font-bold text-slate-600">{p.team?.name ?? "Unassigned"}</td>
+                <td className="px-3 py-4 font-bold text-slate-600">{p.team ? `${p.team.name}${p.team.teamCode ? ` (${p.team.teamCode})` : ""}` : "No Team Assigned"}</td>
                 <td className="px-3 py-4 font-bold text-slate-600">{p.church ?? "-"}</td>
                 <td className="px-3 py-4 font-bold text-slate-600">{p.gender ?? "-"}</td>
                 <td className="px-3 py-4"><span className={`status ${p.checkedIn ? "status-green" : "status-amber"}`}>{p.checkedIn ? "Checked in" : "Pending"}</span></td>

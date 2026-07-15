@@ -27,6 +27,7 @@ const nav = [
   { href: "/participants", label: "Participants", icon: UsersRound, roles: ["SUPER_ADMIN"] },
   { href: "/attendance", label: "Attendance", icon: CalendarCheck, roles: ["SUPER_ADMIN", "ATTENDANCE_ADMIN"] },
   { href: "/meals", label: "Meals", icon: Soup, roles: ["SUPER_ADMIN", "MEAL_ADMIN"] },
+  { href: "/teams", label: "Teams", icon: UsersRound, roles: ["SUPER_ADMIN"] },
   { href: "/outreach", label: "Outreach", icon: Megaphone, roles: ["SUPER_ADMIN"] },
   { href: "/digital-evangelism", label: "Digital Evangelism", icon: MonitorUp, roles: ["SUPER_ADMIN"] },
   { href: "/certificates", label: "Certificates", icon: BadgeCheck, roles: ["SUPER_ADMIN"] },
