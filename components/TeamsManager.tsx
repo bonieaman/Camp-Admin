@@ -40,9 +40,7 @@ export function TeamsManager({ teams, participants }: { teams: Team[]; participa
 
   const participantMatches = useMemo(() => {
     const q = participantQuery.toLowerCase();
-    return participants
-      .filter((participant) => `${participant.fullName} ${participant.participantId} ${participant.church ?? ""}`.toLowerCase().includes(q))
-      .slice(0, 80);
+    return participants.filter((participant) => `${participant.fullName} ${participant.participantId} ${participant.church ?? ""}`.toLowerCase().includes(q));
   }, [participantQuery, participants]);
 
   function toggleParticipant(id: string) {

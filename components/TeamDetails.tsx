@@ -39,9 +39,7 @@ export function TeamDetails({ team, participants, teams, availableParticipants }
   }, [participants, query]);
   const addMatches = useMemo(() => {
     const q = addQuery.toLowerCase();
-    return availableParticipants
-      .filter((participant) => `${participant.fullName} ${participant.participantId} ${participant.church ?? ""} ${participant.teamName ?? ""}`.toLowerCase().includes(q))
-      .slice(0, 80);
+    return availableParticipants.filter((participant) => `${participant.fullName} ${participant.participantId} ${participant.church ?? ""} ${participant.teamName ?? ""}`.toLowerCase().includes(q));
   }, [addQuery, availableParticipants]);
 
   function toggle(id: string) {
