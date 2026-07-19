@@ -1,8 +1,9 @@
 import { ScannerPanel } from "@/components/ScannerPanel";
-import { sessions, todayInCampTimezone } from "@/lib/camp";
+import { activeSessionFor, sessions, todayInCampTimezone } from "@/lib/camp";
 
 export default function AttendancePage() {
   const today = todayInCampTimezone().toISOString().slice(0, 10);
+  const session = activeSessionFor();
   return (
     <ScannerPanel
       title="Attendance QR Scanner"
@@ -18,7 +19,7 @@ export default function AttendancePage() {
           </label>
           <label className="block">
             <span className="mb-2 block text-sm font-black text-slate-600">Session</span>
-            <select name="session" className="field select-premium" defaultValue="MORNING">
+            <select name="session" className="field select-premium" defaultValue={session}>
               {sessions.map((session) => <option key={session}>{session}</option>)}
             </select>
           </label>

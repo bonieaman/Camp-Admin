@@ -115,7 +115,7 @@ export function ProfileTabs({
             <form action={createChallengeRecord} className="grid gap-3 rounded-xl bg-slate-50 p-4 md:grid-cols-[1fr_180px_auto]">
               <input type="hidden" name="participantId" value={participant.id} />
               <input className="field" name="challenge" placeholder="Challenge name" />
-              <input className="field" name="date" type="date" defaultValue="2026-07-08" />
+              <input className="field" name="date" type="date" defaultValue="2026-07-15" />
               <button className="btn btn-primary">Add</button>
             </form>
             <div className="grid gap-3">

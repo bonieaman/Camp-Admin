@@ -9,12 +9,12 @@ async function main() {
     create: {
       id: "camp",
       campName: "Youth Camp 2026",
-      startDate: new Date("2026-07-08T00:00:00.000Z"),
-      endDate: new Date("2026-07-18T00:00:00.000Z"),
+      startDate: new Date("2026-07-15T00:00:00.000Z"),
+      endDate: new Date("2026-07-25T00:00:00.000Z"),
       totalDays: 11,
       timezone: "Africa/Addis_Ababa",
       participantIdPrefix: "YC-2026",
-      finalRequiredDate: new Date("2026-07-18T00:00:00.000Z"),
+      finalRequiredDate: new Date("2026-07-25T00:00:00.000Z"),
       finalRequiredSession: "AFTERNOON"
     }
   });

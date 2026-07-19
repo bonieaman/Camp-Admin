@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -30,6 +31,7 @@ const nav = [
   { href: "/teams", label: "Teams", icon: UsersRound, roles: ["SUPER_ADMIN"] },
   { href: "/outreach", label: "Outreach", icon: Megaphone, roles: ["SUPER_ADMIN"] },
   { href: "/digital-evangelism", label: "Digital Evangelism", icon: MonitorUp, roles: ["SUPER_ADMIN"] },
+  { href: "/attendance-meal-reports", label: "Attendance & Meal Reports", icon: ClipboardList, roles: ["SUPER_ADMIN"] },
   { href: "/certificates", label: "Certificates", icon: BadgeCheck, roles: ["SUPER_ADMIN"] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ["SUPER_ADMIN"] }
 ];

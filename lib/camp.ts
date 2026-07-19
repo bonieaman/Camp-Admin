@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
-export const CAMP_START = "2026-07-08";
-export const CAMP_END = "2026-07-18";
+export const CAMP_START = "2026-07-15";
+export const CAMP_END = "2026-07-25";
 export const CAMP_TZ = "Africa/Addis_Ababa";
 
 export function dateOnly(date: Date | string) {
@@ -48,6 +48,21 @@ export async function ensureSettings() {
 }
 
 export function activeMealFor(date = new Date(), timezone = CAMP_TZ) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).formatToParts(date).map((part) => [part.type, part.value])
+  );
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  if (minutes >= 11 * 60 && minutes <= 15 * 60 + 59) return "LUNCH";
+  if (minutes >= 16 * 60 && minutes <= 20 * 60) return "DINNER";
+  return "BREAKFAST";
+}
+
+export function activeSessionFor(date = new Date(), timezone = CAMP_TZ) {
   const hour = Number(
     new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
@@ -55,9 +70,7 @@ export function activeMealFor(date = new Date(), timezone = CAMP_TZ) {
       hour12: false
     }).format(date)
   );
-  if (hour < 10) return "BREAKFAST";
-  if (hour < 15) return "LUNCH";
-  return "DINNER";
+  return hour < 12 ? "MORNING" : "AFTERNOON";
 }
 
 export const sessions = ["MORNING", "AFTERNOON"] as const;

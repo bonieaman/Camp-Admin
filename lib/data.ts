@@ -23,6 +23,17 @@ export async function getParticipants() {
 
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 6;
 
+export type ReportsFilters = {
+  attendanceDate?: string;
+  attendanceSession?: string;
+  attendanceTeam?: string;
+  attendanceQuery?: string;
+  mealDate?: string;
+  mealType?: string;
+  mealTeam?: string;
+  mealQuery?: string;
+};
+
 export async function getDashboardStats({ attendancePage = 1, mealPage = 1 } = {}) {
   const settings = await ensureSettings();
   const today = todayInCampTimezone(settings.timezone);
@@ -87,6 +98,122 @@ export async function getDashboardStats({ attendancePage = 1, mealPage = 1 } = {
   };
 }
 
+function queryFilter(value?: string) {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function participantSearchWhere(query?: string) {
+  const value = queryFilter(query);
+  if (!value) return undefined;
+  return {
+    OR: [
+      { fullName: { contains: value, mode: Prisma.QueryMode.insensitive } },
+      { participantId: { contains: value, mode: Prisma.QueryMode.insensitive } }
+    ]
+  };
+}
+
+function dateFilter(value?: string) {
+  const trimmed = queryFilter(value);
+  return trimmed ? dateOnly(trimmed) : undefined;
+}
+
+function groupByCampDate<T extends { campDate: Date }>(records: T[]) {
+  return records.reduce<Record<string, T[]>>((groups, record) => {
+    const key = record.campDate.toISOString().slice(0, 10);
+    groups[key] = groups[key] ?? [];
+    groups[key].push(record);
+    return groups;
+  }, {});
+}
+
+export async function getAttendanceMealReports(filters: ReportsFilters = {}) {
+  const settings = await ensureSettings();
+  const today = todayInCampTimezone(settings.timezone);
+
+  const attendanceParticipantWhere = {
+    ...(filters.attendanceTeam ? { teamId: filters.attendanceTeam } : {}),
+    ...(participantSearchWhere(filters.attendanceQuery) ?? {})
+  };
+  const mealParticipantWhere = {
+    ...(filters.mealTeam ? { teamId: filters.mealTeam } : {}),
+    ...(participantSearchWhere(filters.mealQuery) ?? {})
+  };
+
+  const attendanceWhere: Prisma.AttendanceRecordWhereInput = {
+    ...(dateFilter(filters.attendanceDate) ? { campDate: dateFilter(filters.attendanceDate) } : {}),
+    ...(filters.attendanceSession && filters.attendanceSession !== "ALL" ? { session: filters.attendanceSession } : {}),
+    ...(Object.keys(attendanceParticipantWhere).length ? { participant: attendanceParticipantWhere } : {})
+  };
+  const mealWhere: Prisma.MealRecordWhereInput = {
+    ...(dateFilter(filters.mealDate) ? { campDate: dateFilter(filters.mealDate) } : {}),
+    ...(filters.mealType && filters.mealType !== "ALL" ? { meal: filters.mealType } : {}),
+    ...(Object.keys(mealParticipantWhere).length ? { participant: mealParticipantWhere } : {})
+  };
+
+  const [attendanceRecords, mealRecords, attendanceSummary, mealSummary, teams] = await Promise.all([
+    prisma.attendanceRecord.findMany({
+      where: attendanceWhere,
+      orderBy: [{ campDate: "asc" }, { scannedAt: "asc" }],
+      include: { participant: { include: { team: true } } }
+    }),
+    prisma.mealRecord.findMany({
+      where: mealWhere,
+      orderBy: [{ campDate: "asc" }, { scannedAt: "asc" }],
+      include: { participant: { include: { team: true } } }
+    }),
+    prisma.attendanceRecord.groupBy({ by: ["session"], where: attendanceWhere, _count: { _all: true } }),
+    prisma.mealRecord.groupBy({ by: ["meal"], where: mealWhere, _count: { _all: true } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } })
+  ]);
+
+  const attendanceGroups = groupByCampDate(attendanceRecords);
+  const mealGroups = groupByCampDate(mealRecords);
+  const attendanceDates = Object.keys(attendanceGroups).sort();
+  const mealDates = Object.keys(mealGroups).sort();
+  const attendanceCounts = Object.fromEntries(attendanceSummary.map((row) => [row.session, row._count._all]));
+  const mealCounts = Object.fromEntries(mealSummary.map((row) => [row.meal, row._count._all]));
+
+  return {
+    settings,
+    today,
+    teams,
+    summaries: {
+      attendance: {
+        total: attendanceRecords.length,
+        morning: attendanceCounts.MORNING ?? 0,
+        afternoon: attendanceCounts.AFTERNOON ?? 0
+      },
+      meals: {
+        total: mealRecords.length,
+        breakfast: mealCounts.BREAKFAST ?? 0,
+        lunch: mealCounts.LUNCH ?? 0,
+        dinner: mealCounts.DINNER ?? 0
+      }
+    },
+    attendanceDates: attendanceDates.map((date) => {
+      const records = attendanceGroups[date];
+      return {
+        date,
+        campDay: campDayFor(date),
+        morning: records.filter((record) => record.session === "MORNING"),
+        afternoon: records.filter((record) => record.session === "AFTERNOON")
+      };
+    }),
+    mealDates: mealDates.map((date) => {
+      const records = mealGroups[date];
+      return {
+        date,
+        campDay: campDayFor(date),
+        breakfast: records.filter((record) => record.meal === "BREAKFAST"),
+        lunch: records.filter((record) => record.meal === "LUNCH"),
+        dinner: records.filter((record) => record.meal === "DINNER")
+      };
+    })
+  };
+}
+
 export async function lookupParticipantByQr(payload: string) {
   const { parseQrPayload } = await import("@/lib/qr");
   const parsed = parseQrPayload(payload);
@@ -123,7 +250,6 @@ export async function recordAttendanceForParticipant(participantCode: string, da
   const participant = await prisma.participant.findUnique({ where: { participantId } });
   if (!participant) return { ok: false, message: `No participant found for ${participantId}.` };
   const campDate = dateOnly(date);
-  if (!isCampDate(campDate)) return { ok: false, message: "Attendance can only be recorded from July 8 through July 18, 2026." };
   const campDay = campDayFor(campDate);
   const existing = await prisma.attendanceRecord.findUnique({
     where: { participantId_campDate_session: { participantId: participant.id, campDate, session } }
@@ -171,7 +297,6 @@ export async function recordMealForParticipant(participantCode: string, date: st
   const participant = await prisma.participant.findUnique({ where: { participantId } });
   if (!participant) return { ok: false, message: `No participant found for ${participantId}.` };
   const campDate = dateOnly(date);
-  if (!isCampDate(campDate)) return { ok: false, message: "Meals can only be recorded from July 8 through July 18, 2026." };
   const campDay = campDayFor(campDate);
   const existing = await prisma.mealRecord.findUnique({
     where: { participantId_campDate_meal: { participantId: participant.id, campDate, meal } }
