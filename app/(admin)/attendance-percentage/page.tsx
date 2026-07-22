@@ -1,4 +1,4 @@
-import { ArrowDownAZ, ArrowUpAZ, BadgeCheck, Percent, Search, UsersRound } from "lucide-react";
+import { BadgeCheck, Percent, SlidersHorizontal, UsersRound } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { getAttendancePercentagePage } from "@/lib/data";
 
@@ -18,11 +18,8 @@ function FilterLabel({ children }: { children: React.ReactNode }) {
 export default async function AttendancePercentagePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const data = await getAttendancePercentagePage({
-    query: value(params, "query"),
-    teamId: value(params, "teamId"),
     minPercent: value(params, "minPercent"),
-    maxPercent: value(params, "maxPercent"),
-    sort: value(params, "sort")
+    maxPercent: value(params, "maxPercent")
   });
   const eligibleCount = data.rows.filter((participant) => participant.certificate.eligible).length;
 
@@ -30,9 +27,9 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Participants Listed" value={data.meta.total} detail="After current filters" icon={UsersRound} />
-        <StatCard label="Possible Sessions" value={data.meta.totalPossibleSessions} detail="Saturdays excluded" icon={Percent} />
+        <StatCard label="Possible Sessions" value={data.meta.totalPossibleSessions} detail="Fixed attendance maximum" icon={Percent} />
         <StatCard label="Eligible On Page" value={eligibleCount} detail="Certificate status" icon={BadgeCheck} />
-        <StatCard label="Sort Mode" value={value(params, "sort") === "percent-asc" ? "Low to High" : value(params, "sort") === "percent-desc" ? "High to Low" : value(params, "sort") === "name-desc" ? "Z to A" : "A to Z"} detail="Current table ordering" icon={value(params, "sort") === "name-desc" || value(params, "sort") === "percent-desc" ? ArrowDownAZ : ArrowUpAZ} />
+        <StatCard label="Formula" value="/ 16" detail="Distinct Morning/Afternoon records" icon={SlidersHorizontal} />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -44,21 +41,7 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
           <span className="status status-slate">{data.meta.total} participants displayed</span>
         </div>
 
-        <form className="mb-5 grid gap-3 rounded-2xl bg-slate-50 p-4 lg:grid-cols-[1fr_220px_120px_120px_180px_auto]">
-          <label>
-            <FilterLabel>Search</FilterLabel>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input className="field pl-11" name="query" placeholder="Name or participant ID" defaultValue={value(params, "query")} />
-            </div>
-          </label>
-          <label>
-            <FilterLabel>Team</FilterLabel>
-            <select className="field select-premium" name="teamId" defaultValue={value(params, "teamId")}>
-              <option value="">All teams</option>
-              {data.teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
-            </select>
-          </label>
+        <form className="mb-5 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[140px_140px_auto]">
           <label>
             <FilterLabel>Min %</FilterLabel>
             <input className="field" type="number" min="0" max="100" name="minPercent" placeholder="0" defaultValue={value(params, "minPercent")} />
@@ -67,16 +50,7 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
             <FilterLabel>Max %</FilterLabel>
             <input className="field" type="number" min="0" max="100" name="maxPercent" placeholder="100" defaultValue={value(params, "maxPercent")} />
           </label>
-          <label>
-            <FilterLabel>Sort</FilterLabel>
-            <select className="field select-premium" name="sort" defaultValue={value(params, "sort") || "name-asc"}>
-              <option value="name-asc">Name A to Z</option>
-              <option value="name-desc">Name Z to A</option>
-              <option value="percent-desc">Percent high to low</option>
-              <option value="percent-asc">Percent low to high</option>
-            </select>
-          </label>
-          <button className="btn btn-primary self-end"><Search className="h-4 w-4" /> Apply</button>
+          <button className="btn btn-primary self-end"><SlidersHorizontal className="h-4 w-4" /> Apply</button>
         </form>
 
         <div className="overflow-x-auto">

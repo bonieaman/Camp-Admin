@@ -104,11 +104,8 @@ export async function getDashboardStats({ attendancePage = 1, mealPage = 1 } = {
 }
 
 export type AttendancePercentageFilters = {
-  query?: string;
-  teamId?: string;
   minPercent?: string;
   maxPercent?: string;
-  sort?: string;
 };
 
 function percentValue(value?: string) {
@@ -118,34 +115,21 @@ function percentValue(value?: string) {
 }
 
 export async function getAttendancePercentagePage(filters: AttendancePercentageFilters = {}) {
-  const query = queryFilter(filters.query)?.toLowerCase();
   const minPercent = percentValue(filters.minPercent);
   const maxPercent = percentValue(filters.maxPercent);
-  const [participants, teams] = await Promise.all([
-    getParticipants(),
-    prisma.team.findMany({ orderBy: { name: "asc" } })
-  ]);
+  const participants = await getParticipants();
 
   const filtered = participants
     .filter((participant) => {
-      const searchText = `${participant.fullName} ${participant.participantId}`.toLowerCase();
       return (
-        (!query || searchText.includes(query)) &&
-        (!filters.teamId || participant.teamId === filters.teamId) &&
         (minPercent === undefined || participant.certificate.attendancePercent >= minPercent) &&
         (maxPercent === undefined || participant.certificate.attendancePercent <= maxPercent)
       );
     })
-    .sort((a, b) => {
-      if (filters.sort === "percent-asc") return a.certificate.attendancePercent - b.certificate.attendancePercent || a.fullName.localeCompare(b.fullName);
-      if (filters.sort === "percent-desc") return b.certificate.attendancePercent - a.certificate.attendancePercent || a.fullName.localeCompare(b.fullName);
-      if (filters.sort === "name-desc") return b.fullName.localeCompare(a.fullName, undefined, { sensitivity: "base" });
-      return a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" });
-    });
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }));
 
   return {
     rows: filtered,
-    teams,
     meta: {
       total: filtered.length,
       totalPossibleSessions: totalPossibleAttendanceSessions()
