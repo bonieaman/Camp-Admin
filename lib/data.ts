@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { totalPossibleAttendanceSessions } from "@/lib/attendance-percentage";
 import { campDayDisplay, campDayFor, dateOnly, ensureSettings, isCampDate, todayInCampTimezone } from "@/lib/camp";
 import { prisma } from "@/lib/db";
 import { certificateStatus } from "@/lib/eligibility";
@@ -22,16 +23,19 @@ export async function getParticipants() {
 }
 
 const DASHBOARD_ACTIVITY_PAGE_SIZE = 6;
+const REPORT_PAGE_SIZE = 50;
 
 export type ReportsFilters = {
   attendanceDate?: string;
   attendanceSession?: string;
   attendanceTeam?: string;
   attendanceQuery?: string;
+  attendancePage?: number;
   mealDate?: string;
   mealType?: string;
   mealTeam?: string;
   mealQuery?: string;
+  mealPage?: number;
 };
 
 export async function getDashboardStats({ attendancePage = 1, mealPage = 1 } = {}) {
@@ -54,7 +58,8 @@ export async function getDashboardStats({ attendancePage = 1, mealPage = 1 } = {
   const total = participants.length || 1;
   const morning = attendanceToday.filter((record) => record.session === "MORNING").length;
   const afternoon = attendanceToday.filter((record) => record.session === "AFTERNOON").length;
-  const attendancePercent = Math.round((participants.reduce((sum, p) => sum + p.attendanceRecords.length, 0) / (total * 22)) * 100);
+  const totalPossibleSessions = totalPossibleAttendanceSessions();
+  const attendancePercent = Math.round((participants.reduce((sum, p) => sum + p.certificate.totalSessionsAttended, 0) / (total * totalPossibleSessions)) * 100);
   const outreachToday = await prisma.outreachRecord.count({ where: { campDate: today } });
   const outreachThreePlus = participants.filter((p) => p.certificate.outreachDays >= 3).length;
 
@@ -91,10 +96,71 @@ export async function getDashboardStats({ attendancePage = 1, mealPage = 1 } = {
         checkedIn: members.filter((p) => p.checkedIn).length,
         morning: members.reduce((sum, p) => sum + (p.attendanceRecords.some((r) => r.campDay === campDay && r.session === "MORNING") ? 1 : 0), 0),
         afternoon: members.reduce((sum, p) => sum + (p.attendanceRecords.some((r) => r.campDay === campDay && r.session === "AFTERNOON") ? 1 : 0), 0),
-        avgAttendance: Math.round((members.reduce((sum, p) => sum + p.attendanceRecords.length, 0) / (count * 22)) * 100),
+        avgAttendance: Math.round((members.reduce((sum, p) => sum + p.certificate.totalSessionsAttended, 0) / (count * totalPossibleSessions)) * 100),
         eligible: members.filter((p) => p.certificate.eligible).length
       };
     })
+  };
+}
+
+export type AttendancePercentageFilters = {
+  query?: string;
+  teamId?: string;
+  minPercent?: string;
+  maxPercent?: string;
+  sort?: string;
+  page?: number;
+};
+
+const ATTENDANCE_PERCENTAGE_PAGE_SIZE = 50;
+
+function percentValue(value?: string) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  return Math.min(100, Math.max(0, parsed));
+}
+
+export async function getAttendancePercentagePage(filters: AttendancePercentageFilters = {}) {
+  const query = queryFilter(filters.query)?.toLowerCase();
+  const minPercent = percentValue(filters.minPercent);
+  const maxPercent = percentValue(filters.maxPercent);
+  const page = Math.max(1, Math.floor(filters.page ?? 1));
+  const [participants, teams] = await Promise.all([
+    getParticipants(),
+    prisma.team.findMany({ orderBy: { name: "asc" } })
+  ]);
+
+  const filtered = participants
+    .filter((participant) => {
+      const searchText = `${participant.fullName} ${participant.participantId}`.toLowerCase();
+      return (
+        (!query || searchText.includes(query)) &&
+        (!filters.teamId || participant.teamId === filters.teamId) &&
+        (minPercent === undefined || participant.certificate.attendancePercent >= minPercent) &&
+        (maxPercent === undefined || participant.certificate.attendancePercent <= maxPercent)
+      );
+    })
+    .sort((a, b) => {
+      if (filters.sort === "percent-asc") return a.certificate.attendancePercent - b.certificate.attendancePercent || a.fullName.localeCompare(b.fullName);
+      if (filters.sort === "percent-desc") return b.certificate.attendancePercent - a.certificate.attendancePercent || a.fullName.localeCompare(b.fullName);
+      if (filters.sort === "name-desc") return b.fullName.localeCompare(a.fullName, undefined, { sensitivity: "base" });
+      return a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" });
+    });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ATTENDANCE_PERCENTAGE_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const rows = filtered.slice((safePage - 1) * ATTENDANCE_PERCENTAGE_PAGE_SIZE, safePage * ATTENDANCE_PERCENTAGE_PAGE_SIZE);
+
+  return {
+    rows,
+    teams,
+    meta: {
+      page: safePage,
+      pageSize: ATTENDANCE_PERCENTAGE_PAGE_SIZE,
+      total: filtered.length,
+      totalPages,
+      totalPossibleSessions: totalPossibleAttendanceSessions()
+    }
   };
 }
 
@@ -119,59 +185,56 @@ function dateFilter(value?: string) {
   return trimmed ? dateOnly(trimmed) : undefined;
 }
 
-function groupByCampDate<T extends { campDate: Date }>(records: T[]) {
-  return records.reduce<Record<string, T[]>>((groups, record) => {
-    const key = record.campDate.toISOString().slice(0, 10);
-    groups[key] = groups[key] ?? [];
-    groups[key].push(record);
-    return groups;
-  }, {});
-}
-
 export async function getAttendanceMealReports(filters: ReportsFilters = {}) {
   const settings = await ensureSettings();
   const today = todayInCampTimezone(settings.timezone);
+  const attendancePage = Math.max(1, Math.floor(filters.attendancePage ?? 1));
+  const mealPage = Math.max(1, Math.floor(filters.mealPage ?? 1));
+  const attendanceDate = dateFilter(filters.attendanceDate);
+  const mealDate = dateFilter(filters.mealDate);
 
-  const attendanceParticipantWhere = {
+  const attendanceParticipantWhere: Prisma.ParticipantWhereInput = {
     ...(filters.attendanceTeam ? { teamId: filters.attendanceTeam } : {}),
     ...(participantSearchWhere(filters.attendanceQuery) ?? {})
   };
-  const mealParticipantWhere = {
+  const mealParticipantWhere: Prisma.ParticipantWhereInput = {
     ...(filters.mealTeam ? { teamId: filters.mealTeam } : {}),
     ...(participantSearchWhere(filters.mealQuery) ?? {})
   };
 
   const attendanceWhere: Prisma.AttendanceRecordWhereInput = {
-    ...(dateFilter(filters.attendanceDate) ? { campDate: dateFilter(filters.attendanceDate) } : {}),
+    ...(attendanceDate ? { campDate: attendanceDate } : {}),
     ...(filters.attendanceSession && filters.attendanceSession !== "ALL" ? { session: filters.attendanceSession } : {}),
     ...(Object.keys(attendanceParticipantWhere).length ? { participant: attendanceParticipantWhere } : {})
   };
   const mealWhere: Prisma.MealRecordWhereInput = {
-    ...(dateFilter(filters.mealDate) ? { campDate: dateFilter(filters.mealDate) } : {}),
+    ...(mealDate ? { campDate: mealDate } : {}),
     ...(filters.mealType && filters.mealType !== "ALL" ? { meal: filters.mealType } : {}),
     ...(Object.keys(mealParticipantWhere).length ? { participant: mealParticipantWhere } : {})
   };
 
-  const [attendanceRecords, mealRecords, attendanceSummary, mealSummary, teams] = await Promise.all([
+  const [attendanceRecords, mealRecords, attendanceSummary, mealSummary, attendanceCount, mealCount, teams] = await Promise.all([
     prisma.attendanceRecord.findMany({
       where: attendanceWhere,
-      orderBy: [{ campDate: "asc" }, { scannedAt: "asc" }],
+      skip: (attendancePage - 1) * REPORT_PAGE_SIZE,
+      take: REPORT_PAGE_SIZE,
+      orderBy: [{ campDate: "desc" }, { scannedAt: "desc" }],
       include: { participant: { include: { team: true } } }
     }),
     prisma.mealRecord.findMany({
       where: mealWhere,
-      orderBy: [{ campDate: "asc" }, { scannedAt: "asc" }],
+      skip: (mealPage - 1) * REPORT_PAGE_SIZE,
+      take: REPORT_PAGE_SIZE,
+      orderBy: [{ campDate: "desc" }, { scannedAt: "desc" }],
       include: { participant: { include: { team: true } } }
     }),
     prisma.attendanceRecord.groupBy({ by: ["session"], where: attendanceWhere, _count: { _all: true } }),
     prisma.mealRecord.groupBy({ by: ["meal"], where: mealWhere, _count: { _all: true } }),
+    prisma.attendanceRecord.count({ where: attendanceWhere }),
+    prisma.mealRecord.count({ where: mealWhere }),
     prisma.team.findMany({ orderBy: { name: "asc" } })
   ]);
 
-  const attendanceGroups = groupByCampDate(attendanceRecords);
-  const mealGroups = groupByCampDate(mealRecords);
-  const attendanceDates = Object.keys(attendanceGroups).sort();
-  const mealDates = Object.keys(mealGroups).sort();
   const attendanceCounts = Object.fromEntries(attendanceSummary.map((row) => [row.session, row._count._all]));
   const mealCounts = Object.fromEntries(mealSummary.map((row) => [row.meal, row._count._all]));
 
@@ -192,25 +255,20 @@ export async function getAttendanceMealReports(filters: ReportsFilters = {}) {
         dinner: mealCounts.DINNER ?? 0
       }
     },
-    attendanceDates: attendanceDates.map((date) => {
-      const records = attendanceGroups[date];
-      return {
-        date,
-        campDay: campDayFor(date),
-        morning: records.filter((record) => record.session === "MORNING"),
-        afternoon: records.filter((record) => record.session === "AFTERNOON")
-      };
-    }),
-    mealDates: mealDates.map((date) => {
-      const records = mealGroups[date];
-      return {
-        date,
-        campDay: campDayFor(date),
-        breakfast: records.filter((record) => record.meal === "BREAKFAST"),
-        lunch: records.filter((record) => record.meal === "LUNCH"),
-        dinner: records.filter((record) => record.meal === "DINNER")
-      };
-    })
+    attendanceRecords,
+    mealRecords,
+    attendanceMeta: {
+      page: attendancePage,
+      pageSize: REPORT_PAGE_SIZE,
+      total: attendanceCount,
+      totalPages: Math.max(1, Math.ceil(attendanceCount / REPORT_PAGE_SIZE))
+    },
+    mealMeta: {
+      page: mealPage,
+      pageSize: REPORT_PAGE_SIZE,
+      total: mealCount,
+      totalPages: Math.max(1, Math.ceil(mealCount / REPORT_PAGE_SIZE))
+    }
   };
 }
 

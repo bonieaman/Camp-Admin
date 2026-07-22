@@ -16,6 +16,7 @@ const pageAccess: Record<AdminRole, string[]> = {
     "/teams",
     "/outreach",
     "/digital-evangelism",
+    "/attendance-percentage",
     "/attendance-meal-reports",
     "/certificates",
     "/settings"

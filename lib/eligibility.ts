@@ -1,4 +1,5 @@
 import type { AttendanceRecord, MealRecord, OutreachRecord, Participant } from "@prisma/client";
+import { attendancePercentageStats } from "@/lib/attendance-percentage";
 
 type ParticipantWithRecords = Participant & {
   attendanceRecords: AttendanceRecord[];
@@ -7,13 +8,14 @@ type ParticipantWithRecords = Participant & {
 };
 
 export function certificateStatus(participant: ParticipantWithRecords) {
+  const attendanceStats = attendancePercentageStats(participant.attendanceRecords);
   const days = new Set(participant.attendanceRecords.map((record) => record.campDay));
   const afternoonFinal = participant.attendanceRecords.some(
     (record) => record.campDay === 11 && record.session === "AFTERNOON"
   );
   const mealDays = new Set(participant.mealRecords.map((record) => `${record.campDay}-${record.meal}`));
   const outreachDays = new Set(participant.outreachRecords.map((record) => record.campDay));
-  const attendancePercent = Math.round((participant.attendanceRecords.length / 22) * 100);
+  const { attendancePercent, totalSessionsAttended, totalPossibleSessions } = attendanceStats;
   const eligible =
     participant.checkedIn &&
     participant.disciplinaryClearance &&
@@ -31,5 +33,5 @@ export function certificateStatus(participant: ParticipantWithRecords) {
     outreachDays.size < 3 ? `${3 - outreachDays.size} more outreach days` : null
   ].filter(Boolean) as string[];
 
-  return { eligible, attendancePercent, attendedDays: days.size, mealsServed: mealDays.size, outreachDays: outreachDays.size, missing };
+  return { eligible, attendancePercent, attendedDays: days.size, totalSessionsAttended, totalPossibleSessions, mealsServed: mealDays.size, outreachDays: outreachDays.size, missing };
 }
