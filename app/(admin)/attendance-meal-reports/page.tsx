@@ -143,11 +143,12 @@ export default async function AttendanceMealReportsPage({ searchParams }: { sear
             <div className="overflow-x-auto">
               <table className="w-full min-w-[880px] text-left text-sm">
                 <thead className="text-xs uppercase text-slate-500">
-                  <tr>{["Participant ID", "Name", "Team", "Session", "Date", "Time Recorded"].map((head) => <th key={head} className="border-b border-slate-200 px-3 py-3">{head}</th>)}</tr>
+                  <tr>{["#", "Participant ID", "Name", "Team", "Session", "Date", "Time Recorded"].map((head) => <th key={head} className="border-b border-slate-200 px-3 py-3">{head}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {data.attendanceRecords.map((record) => (
+                  {data.attendanceRecords.map((record, index) => (
                     <tr key={record.id} className="border-b border-slate-100">
+                      <td className="px-3 py-4 font-black text-slate-500">{index + 1}</td>
                       <td className="px-3 py-4 font-black text-royal">{record.participant.participantId}</td>
                       <td className="px-3 py-4 font-black text-ink">{record.participant.fullName}</td>
                       <td className="px-3 py-4 font-bold text-slate-600">{record.participant.team?.name ?? "No Team Assigned"}</td>
@@ -200,11 +201,12 @@ export default async function AttendanceMealReportsPage({ searchParams }: { sear
             <div className="overflow-x-auto">
               <table className="w-full min-w-[880px] text-left text-sm">
                 <thead className="text-xs uppercase text-slate-500">
-                  <tr>{["Participant ID", "Name", "Team", "Meal Type", "Date", "Time Served"].map((head) => <th key={head} className="border-b border-slate-200 px-3 py-3">{head}</th>)}</tr>
+                  <tr>{["#", "Participant ID", "Name", "Team", "Meal Type", "Date", "Time Served"].map((head) => <th key={head} className="border-b border-slate-200 px-3 py-3">{head}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {data.mealRecords.map((record) => (
+                  {data.mealRecords.map((record, index) => (
                     <tr key={record.id} className="border-b border-slate-100">
+                      <td className="px-3 py-4 font-black text-slate-500">{index + 1}</td>
                       <td className="px-3 py-4 font-black text-royal">{record.participant.participantId}</td>
                       <td className="px-3 py-4 font-black text-ink">{record.participant.fullName}</td>
                       <td className="px-3 py-4 font-bold text-slate-600">{record.participant.team?.name ?? "No Team Assigned"}</td>

@@ -2,6 +2,7 @@ import type { AttendanceRecord } from "@prisma/client";
 import { CAMP_END, CAMP_START, dateOnly } from "@/lib/camp";
 
 const VALID_SESSIONS = new Set(["MORNING", "AFTERNOON"]);
+const TOTAL_POSSIBLE_ATTENDANCE_SESSIONS = 16;
 
 function ymd(date: Date | string) {
   return dateOnly(date).toISOString().slice(0, 10);
@@ -23,7 +24,7 @@ export function validAttendanceDates() {
 }
 
 export function totalPossibleAttendanceSessions() {
-  return validAttendanceDates().length * 2;
+  return TOTAL_POSSIBLE_ATTENDANCE_SESSIONS;
 }
 
 export function attendancePercentageStats(records: Pick<AttendanceRecord, "campDate" | "session">[]) {
@@ -39,7 +40,7 @@ export function attendancePercentageStats(records: Pick<AttendanceRecord, "campD
   }
 
   const totalPossibleSessions = totalPossibleAttendanceSessions();
-  const totalSessionsAttended = attendedSessions.size;
+  const totalSessionsAttended = Math.min(attendedSessions.size, totalPossibleAttendanceSessions());
   const attendancePercent = totalPossibleSessions
     ? Math.round((totalSessionsAttended / totalPossibleSessions) * 100)
     : 0;

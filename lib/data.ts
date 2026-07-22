@@ -109,10 +109,7 @@ export type AttendancePercentageFilters = {
   minPercent?: string;
   maxPercent?: string;
   sort?: string;
-  page?: number;
 };
-
-const ATTENDANCE_PERCENTAGE_PAGE_SIZE = 50;
 
 function percentValue(value?: string) {
   const parsed = Number(value);
@@ -124,7 +121,6 @@ export async function getAttendancePercentagePage(filters: AttendancePercentageF
   const query = queryFilter(filters.query)?.toLowerCase();
   const minPercent = percentValue(filters.minPercent);
   const maxPercent = percentValue(filters.maxPercent);
-  const page = Math.max(1, Math.floor(filters.page ?? 1));
   const [participants, teams] = await Promise.all([
     getParticipants(),
     prisma.team.findMany({ orderBy: { name: "asc" } })
@@ -147,18 +143,11 @@ export async function getAttendancePercentagePage(filters: AttendancePercentageF
       return a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" });
     });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ATTENDANCE_PERCENTAGE_PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const rows = filtered.slice((safePage - 1) * ATTENDANCE_PERCENTAGE_PAGE_SIZE, safePage * ATTENDANCE_PERCENTAGE_PAGE_SIZE);
-
   return {
-    rows,
+    rows: filtered,
     teams,
     meta: {
-      page: safePage,
-      pageSize: ATTENDANCE_PERCENTAGE_PAGE_SIZE,
       total: filtered.length,
-      totalPages,
       totalPossibleSessions: totalPossibleAttendanceSessions()
     }
   };
@@ -244,12 +233,12 @@ export async function getAttendanceMealReports(filters: ReportsFilters = {}) {
     teams,
     summaries: {
       attendance: {
-        total: attendanceRecords.length,
+        total: attendanceCount,
         morning: attendanceCounts.MORNING ?? 0,
         afternoon: attendanceCounts.AFTERNOON ?? 0
       },
       meals: {
-        total: mealRecords.length,
+        total: mealCount,
         breakfast: mealCounts.BREAKFAST ?? 0,
         lunch: mealCounts.LUNCH ?? 0,
         dinner: mealCounts.DINNER ?? 0

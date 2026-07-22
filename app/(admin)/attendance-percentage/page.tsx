@@ -1,5 +1,4 @@
 import { ArrowDownAZ, ArrowUpAZ, BadgeCheck, Percent, Search, UsersRound } from "lucide-react";
-import Link from "next/link";
 import { StatCard } from "@/components/StatCard";
 import { getAttendancePercentagePage } from "@/lib/data";
 
@@ -10,25 +9,6 @@ type SearchParams = Record<string, string | string[] | undefined>;
 function value(params: SearchParams, key: string) {
   const raw = params[key];
   return Array.isArray(raw) ? raw[0] ?? "" : raw ?? "";
-}
-
-function pageValue(params: SearchParams) {
-  const parsed = Number(value(params, "page"));
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
-}
-
-function hrefWith(params: SearchParams, updates: Record<string, string | number | undefined>) {
-  const next = new URLSearchParams();
-  for (const [key, raw] of Object.entries(params)) {
-    const item = Array.isArray(raw) ? raw[0] : raw;
-    if (item) next.set(key, item);
-  }
-  for (const [key, item] of Object.entries(updates)) {
-    if (item === undefined || item === "") next.delete(key);
-    else next.set(key, String(item));
-  }
-  const query = next.toString();
-  return query ? `/attendance-percentage?${query}` : "/attendance-percentage";
 }
 
 function FilterLabel({ children }: { children: React.ReactNode }) {
@@ -42,8 +22,7 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
     teamId: value(params, "teamId"),
     minPercent: value(params, "minPercent"),
     maxPercent: value(params, "maxPercent"),
-    sort: value(params, "sort"),
-    page: pageValue(params)
+    sort: value(params, "sort")
   });
   const eligibleCount = data.rows.filter((participant) => participant.certificate.eligible).length;
 
@@ -60,9 +39,9 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-xl font-black text-ink">Attendance Percentage</h2>
-            <p className="text-sm font-bold text-slate-500">Calculated from Morning and Afternoon attendance only, July 15-25, excluding both Saturdays.</p>
+            <p className="text-sm font-bold text-slate-500">Calculated from Morning and Afternoon attendance only. Meals are excluded.</p>
           </div>
-          <span className="status status-slate">Page {data.meta.page} of {data.meta.totalPages}</span>
+          <span className="status status-slate">{data.meta.total} participants displayed</span>
         </div>
 
         <form className="mb-5 grid gap-3 rounded-2xl bg-slate-50 p-4 lg:grid-cols-[1fr_220px_120px_120px_180px_auto]">
@@ -97,7 +76,6 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
               <option value="percent-asc">Percent low to high</option>
             </select>
           </label>
-          <input type="hidden" name="page" value="1" />
           <button className="btn btn-primary self-end"><Search className="h-4 w-4" /> Apply</button>
         </form>
 
@@ -131,11 +109,7 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm font-bold text-slate-600">
           <span>{data.meta.total} participants</span>
-          <div className="flex items-center gap-2">
-            <Link className={`btn btn-secondary py-2 ${data.meta.page <= 1 ? "pointer-events-none opacity-50" : ""}`} href={hrefWith(params, { page: Math.max(1, data.meta.page - 1) })}>Previous</Link>
-            <span>Page {data.meta.page} of {data.meta.totalPages}</span>
-            <Link className={`btn btn-secondary py-2 ${data.meta.page >= data.meta.totalPages ? "pointer-events-none opacity-50" : ""}`} href={hrefWith(params, { page: Math.min(data.meta.totalPages, data.meta.page + 1) })}>Next</Link>
-          </div>
+          <span>All matching participants are shown.</span>
         </div>
       </section>
     </div>
