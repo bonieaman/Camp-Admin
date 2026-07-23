@@ -8,7 +8,11 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 function value(params: SearchParams, key: string) {
   const raw = params[key];
-  return Array.isArray(raw) ? raw[0] ?? "" : raw ?? "";
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
+function inputValue(params: SearchParams, key: string) {
+  return value(params, key) ?? "";
 }
 
 function FilterLabel({ children }: { children: React.ReactNode }) {
@@ -17,6 +21,7 @@ function FilterLabel({ children }: { children: React.ReactNode }) {
 
 export default async function AttendancePercentagePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
+  const filterActive = Boolean(value(params, "minPercent") || value(params, "maxPercent"));
   const data = await getAttendancePercentagePage({
     minPercent: value(params, "minPercent"),
     maxPercent: value(params, "maxPercent")
@@ -26,7 +31,7 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Participants Listed" value={data.meta.total} detail="After current filters" icon={UsersRound} />
+        <StatCard label="Participants Listed" value={data.meta.total} detail={filterActive ? "After min/max filter" : "Complete participant source"} icon={UsersRound} />
         <StatCard label="Possible Sessions" value={data.meta.totalPossibleSessions} detail="Fixed attendance maximum" icon={Percent} />
         <StatCard label="Eligible On Page" value={eligibleCount} detail="Certificate status" icon={BadgeCheck} />
         <StatCard label="Formula" value="/ 16" detail="Distinct Morning/Afternoon records" icon={SlidersHorizontal} />
@@ -44,11 +49,11 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
         <form className="mb-5 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[140px_140px_auto]">
           <label>
             <FilterLabel>Min %</FilterLabel>
-            <input className="field" type="number" min="0" max="100" name="minPercent" placeholder="0" defaultValue={value(params, "minPercent")} />
+            <input className="field" type="number" min="0" name="minPercent" placeholder="No minimum" defaultValue={inputValue(params, "minPercent")} />
           </label>
           <label>
             <FilterLabel>Max %</FilterLabel>
-            <input className="field" type="number" min="0" max="100" name="maxPercent" placeholder="100" defaultValue={value(params, "maxPercent")} />
+            <input className="field" type="number" min="0" name="maxPercent" placeholder="No maximum" defaultValue={inputValue(params, "maxPercent")} />
           </label>
           <button className="btn btn-primary self-end"><SlidersHorizontal className="h-4 w-4" /> Apply</button>
         </form>
@@ -57,7 +62,7 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
           <table className="w-full min-w-[1020px] text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
               <tr>
-                {["Participant ID", "Full Name", "Team", "Attendance Percentage", "Total Sessions Attended", "Total Possible Sessions", "Certificate Eligibility Status"].map((head) => (
+                {["Participant ID", "Full Name", "Team", "Sessions Attended", "Total Possible Sessions", "Attendance Percentage"].map((head) => (
                   <th key={head} className="border-b border-slate-200 px-3 py-3">{head}</th>
                 ))}
               </tr>
@@ -68,12 +73,11 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
                   <td className="px-3 py-4 font-black text-royal">{participant.participantId}</td>
                   <td className="px-3 py-4 font-black text-ink">{participant.fullName}</td>
                   <td className="px-3 py-4 font-bold text-slate-600">{participant.team ? `${participant.team.name}${participant.team.teamCode ? ` (${participant.team.teamCode})` : ""}` : "No Team Assigned"}</td>
+                  <td className="px-3 py-4 font-bold text-slate-700">{participant.certificate.totalSessionsAttended}</td>
+                  <td className="px-3 py-4 font-bold text-slate-700">{participant.certificate.totalPossibleSessions}</td>
                   <td className="px-3 py-4">
                     <span className={`status ${participant.certificate.attendancePercent >= 90 ? "status-green" : participant.certificate.attendancePercent >= 70 ? "status-slate" : "status-amber"}`}>{participant.certificate.attendancePercent}%</span>
                   </td>
-                  <td className="px-3 py-4 font-bold text-slate-700">{participant.certificate.totalSessionsAttended}</td>
-                  <td className="px-3 py-4 font-bold text-slate-700">{participant.certificate.totalPossibleSessions}</td>
-                  <td className="px-3 py-4"><span className={`status ${participant.certificate.eligible ? "status-green" : "status-slate"}`}>{participant.certificate.eligible ? "Eligible" : "Not eligible"}</span></td>
                 </tr>
               ))}
             </tbody>

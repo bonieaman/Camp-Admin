@@ -109,9 +109,10 @@ export type AttendancePercentageFilters = {
 };
 
 function percentValue(value?: string) {
+  if (value === undefined || value.trim() === "") return undefined;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return undefined;
-  return Math.min(100, Math.max(0, parsed));
+  return Math.max(0, parsed);
 }
 
 export async function getAttendancePercentagePage(filters: AttendancePercentageFilters = {}) {
