@@ -62,14 +62,15 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
           <table className="w-full min-w-[1020px] text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
               <tr>
-                {["Participant ID", "Full Name", "Team", "Sessions Attended", "Total Possible Sessions", "Attendance Percentage"].map((head) => (
+                {["#", "Participant ID", "Full Name", "Team", "Sessions Attended", "Total Possible Sessions", "Attendance Percentage"].map((head) => (
                   <th key={head} className="border-b border-slate-200 px-3 py-3">{head}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((participant) => (
+              {data.rows.map((participant, index) => (
                 <tr key={participant.id} className="border-b border-slate-100">
+                  <td className="px-3 py-4 font-black text-slate-500">{index + 1}</td>
                   <td className="px-3 py-4 font-black text-royal">{participant.participantId}</td>
                   <td className="px-3 py-4 font-black text-ink">{participant.fullName}</td>
                   <td className="px-3 py-4 font-bold text-slate-600">{participant.team ? `${participant.team.name}${participant.team.teamCode ? ` (${participant.team.teamCode})` : ""}` : "No Team Assigned"}</td>
