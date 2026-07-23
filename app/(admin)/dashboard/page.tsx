@@ -1,5 +1,6 @@
 import { BadgeCheck, CalendarCheck, Megaphone, QrCode, Soup, UsersRound } from "lucide-react";
 import Link from "next/link";
+import { AdminDataUnavailable } from "@/components/AdminDataUnavailable";
 import { StatCard } from "@/components/StatCard";
 import { activeMealFor } from "@/lib/camp";
 import { getDashboardStats } from "@/lib/data";
@@ -31,7 +32,12 @@ function Pagination({ page, total, pageSize, param }: { page: number; total: num
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
-  const data = await getDashboardStats({ attendancePage: pageValue(params.attendancePage), mealPage: pageValue(params.mealPage) });
+  let data: Awaited<ReturnType<typeof getDashboardStats>>;
+  try {
+    data = await getDashboardStats({ attendancePage: pageValue(params.attendancePage), mealPage: pageValue(params.mealPage) });
+  } catch {
+    return <AdminDataUnavailable title="Dashboard data is temporarily unavailable" />;
+  }
   const currentMeal = activeMealFor(new Date(), data.settings.timezone);
 
   return (

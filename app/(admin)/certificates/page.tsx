@@ -1,8 +1,14 @@
 import Link from "next/link";
+import { AdminDataUnavailable } from "@/components/AdminDataUnavailable";
 import { getParticipants } from "@/lib/data";
 
 export default async function CertificatesPage() {
-  const participants = await getParticipants();
+  let participants: Awaited<ReturnType<typeof getParticipants>>;
+  try {
+    participants = await getParticipants();
+  } catch {
+    return <AdminDataUnavailable title="Certificate data is temporarily unavailable" />;
+  }
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">

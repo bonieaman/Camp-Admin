@@ -1,5 +1,6 @@
 import { CalendarCheck, Clock3, Search, Soup, Utensils } from "lucide-react";
 import Link from "next/link";
+import { AdminDataUnavailable } from "@/components/AdminDataUnavailable";
 import { StatCard } from "@/components/StatCard";
 import { meals, sessions } from "@/lib/camp";
 import { getAttendanceMealReports } from "@/lib/data";
@@ -73,18 +74,23 @@ function Pagination({ params, page, totalPages, pageKey }: { params: SearchParam
 export default async function AttendanceMealReportsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const section = value(params, "section") === "meals" ? "meals" : "attendance";
-  const data = await getAttendanceMealReports({
-    attendanceDate: value(params, "attendanceDate"),
-    attendanceSession: value(params, "attendanceSession"),
-    attendanceTeam: value(params, "attendanceTeam"),
-    attendanceQuery: value(params, "attendanceQuery"),
-    attendancePage: pageValue(params, "attendancePage"),
-    mealDate: value(params, "mealDate"),
-    mealType: value(params, "mealType"),
-    mealTeam: value(params, "mealTeam"),
-    mealQuery: value(params, "mealQuery"),
-    mealPage: pageValue(params, "mealPage")
-  });
+  let data: Awaited<ReturnType<typeof getAttendanceMealReports>>;
+  try {
+    data = await getAttendanceMealReports({
+      attendanceDate: value(params, "attendanceDate"),
+      attendanceSession: value(params, "attendanceSession"),
+      attendanceTeam: value(params, "attendanceTeam"),
+      attendanceQuery: value(params, "attendanceQuery"),
+      attendancePage: pageValue(params, "attendancePage"),
+      mealDate: value(params, "mealDate"),
+      mealType: value(params, "mealType"),
+      mealTeam: value(params, "mealTeam"),
+      mealQuery: value(params, "mealQuery"),
+      mealPage: pageValue(params, "mealPage")
+    });
+  } catch {
+    return <AdminDataUnavailable title="Attendance and meal reports are temporarily unavailable" />;
+  }
 
   return (
     <div className="space-y-6">

@@ -23,13 +23,19 @@ const titles: Record<string, string> = {
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const settings = await ensureSettings();
-  const today = todayInCampTimezone(settings.timezone);
-  const campDay = campDayDisplay(today, settings.totalDays);
+  let campLine = "Camp data temporarily unavailable";
+  try {
+    const settings = await ensureSettings();
+    const today = todayInCampTimezone(settings.timezone);
+    const campDay = campDayDisplay(today, settings.totalDays);
+    campLine = `Day ${campDay} / ${settings.totalDays} - ${settings.timezone}`;
+  } catch {
+    campLine = "Database connection unavailable";
+  }
 
   return (
-    <AdminShell title="Youth Camp 2026" campLine={`Day ${campDay} / ${settings.totalDays} - ${settings.timezone}`} role={session.role}>
-      <RealtimeRefresh interval={2500} />
+    <AdminShell title="Youth Camp 2026" campLine={campLine} role={session.role}>
+      <RealtimeRefresh />
       {children}
     </AdminShell>
   );

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { createChallengeRecord, deleteChallengeRecord, toggleCheckIn, updateParticipantTeam } from "@/app/(admin)/actions";
 
-type Row = { id: string; campDay: number; session?: string; meal?: string; challenge?: string; scannedAt?: Date | string; completedAt?: Date | string };
+type Row = { id: string; campDate?: Date | string; campDay: number; session?: string; meal?: string; challenge?: string; scannedAt?: Date | string; completedAt?: Date | string };
 
 export function ProfileTabs({
   participant,
@@ -27,12 +27,21 @@ export function ProfileTabs({
   }
 
   const status = participant.certificate;
+  const formatRecordDate = (record: Row) =>
+    record.campDate
+      ? new Date(record.campDate).toLocaleDateString("en-US", {
+          timeZone: "Africa/Addis_Ababa",
+          month: "long",
+          day: "numeric",
+          year: "numeric"
+        })
+      : "Date not recorded";
   const recordList = (records: Row[], kind: "attendance" | "meal" | "outreach" | "challenge") => (
     <div className="grid gap-3">
       {records.map((record) => (
         <div key={record.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
           <div>
-            <p className="font-black text-ink">Day {record.campDay}</p>
+            <p className="font-black text-ink">{formatRecordDate(record)}</p>
             <p className="text-sm font-semibold text-slate-500">{record.session ?? record.meal ?? record.challenge ?? kind}</p>
           </div>
           <span className="status status-green">Recorded</span>
@@ -93,9 +102,12 @@ export function ProfileTabs({
           ))}
         </div>
         {tab === "Overview" ? (
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
             {[
-              ["Attendance days", status.attendedDays],
+              ["Morning attendance", status.morningSessions],
+              ["Afternoon attendance", status.afternoonSessions],
+              ["Sessions attended", status.totalSessionsAttended],
+              ["Total possible", status.totalPossibleSessions],
               ["Attendance percent", `${status.attendancePercent}%`],
               ["Meals served", status.mealsServed],
               ["Outreach days", status.outreachDays]
@@ -122,7 +134,7 @@ export function ProfileTabs({
               {participant.challengeRecords.map((record: Row) => (
                 <div key={record.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
                   <div>
-                    <p className="font-black text-ink">Day {record.campDay}</p>
+                    <p className="font-black text-ink">{formatRecordDate(record)}</p>
                     <p className="text-sm font-semibold text-slate-500">{record.challenge}</p>
                   </div>
                   <form action={deleteChallengeRecord} onSubmit={(event) => { if (!window.confirm("Delete this challenge record?")) event.preventDefault(); }}>

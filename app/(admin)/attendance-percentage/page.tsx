@@ -1,4 +1,6 @@
 import { BadgeCheck, Percent, SlidersHorizontal, UsersRound } from "lucide-react";
+import Link from "next/link";
+import { AdminDataUnavailable } from "@/components/AdminDataUnavailable";
 import { StatCard } from "@/components/StatCard";
 import { getAttendancePercentagePage } from "@/lib/data";
 
@@ -22,10 +24,15 @@ function FilterLabel({ children }: { children: React.ReactNode }) {
 export default async function AttendancePercentagePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
   const filterActive = Boolean(value(params, "minPercent") || value(params, "maxPercent"));
-  const data = await getAttendancePercentagePage({
-    minPercent: value(params, "minPercent"),
-    maxPercent: value(params, "maxPercent")
-  });
+  let data: Awaited<ReturnType<typeof getAttendancePercentagePage>>;
+  try {
+    data = await getAttendancePercentagePage({
+      minPercent: value(params, "minPercent"),
+      maxPercent: value(params, "maxPercent")
+    });
+  } catch {
+    return <AdminDataUnavailable title="Attendance percentage data is temporarily unavailable" />;
+  }
   const eligibleCount = data.rows.filter((participant) => participant.certificate.eligible).length;
 
   return (
@@ -72,7 +79,11 @@ export default async function AttendancePercentagePage({ searchParams }: { searc
                 <tr key={participant.id} className="border-b border-slate-100">
                   <td className="px-3 py-4 font-black text-slate-500">{index + 1}</td>
                   <td className="px-3 py-4 font-black text-royal">{participant.participantId}</td>
-                  <td className="px-3 py-4 font-black text-ink">{participant.fullName}</td>
+                  <td className="px-3 py-4 font-black text-ink">
+                    <Link className="transition hover:text-royal hover:underline" href={`/participants/${participant.id}`}>
+                      {participant.fullName}
+                    </Link>
+                  </td>
                   <td className="px-3 py-4 font-bold text-slate-600">{participant.team ? `${participant.team.name}${participant.team.teamCode ? ` (${participant.team.teamCode})` : ""}` : "No Team Assigned"}</td>
                   <td className="px-3 py-4 font-bold text-slate-700">{participant.certificate.totalSessionsAttended}</td>
                   <td className="px-3 py-4 font-bold text-slate-700">{participant.certificate.totalPossibleSessions}</td>

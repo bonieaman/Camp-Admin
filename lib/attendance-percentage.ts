@@ -15,12 +15,16 @@ export function totalPossibleAttendanceSessions() {
 export function attendancePercentageStats(records: Pick<AttendanceRecord, "campDate" | "session">[]) {
   const attendedSessions = new Set<string>();
   const attendedDays = new Set<string>();
+  const morningSessions = new Set<string>();
+  const afternoonSessions = new Set<string>();
 
   for (const record of records) {
     const date = ymd(record.campDate);
     if (!VALID_SESSIONS.has(record.session)) continue;
     attendedSessions.add(`${date}-${record.session}`);
     attendedDays.add(date);
+    if (record.session === "MORNING") morningSessions.add(date);
+    if (record.session === "AFTERNOON") afternoonSessions.add(date);
   }
 
   const totalPossibleSessions = totalPossibleAttendanceSessions();
@@ -32,6 +36,8 @@ export function attendancePercentageStats(records: Pick<AttendanceRecord, "campD
   return {
     attendancePercent,
     attendedDays: attendedDays.size,
+    morningSessions: morningSessions.size,
+    afternoonSessions: afternoonSessions.size,
     totalSessionsAttended,
     totalPossibleSessions
   };

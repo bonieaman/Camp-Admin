@@ -15,7 +15,7 @@ export function certificateStatus(participant: ParticipantWithRecords) {
   );
   const mealDays = new Set(participant.mealRecords.map((record) => `${record.campDay}-${record.meal}`));
   const outreachDays = new Set(participant.outreachRecords.map((record) => record.campDay));
-  const { attendancePercent, totalSessionsAttended, totalPossibleSessions } = attendanceStats;
+  const { attendancePercent, morningSessions, afternoonSessions, totalSessionsAttended, totalPossibleSessions } = attendanceStats;
   const eligible =
     participant.checkedIn &&
     participant.disciplinaryClearance &&
@@ -33,5 +33,5 @@ export function certificateStatus(participant: ParticipantWithRecords) {
     outreachDays.size < 3 ? `${3 - outreachDays.size} more outreach days` : null
   ].filter(Boolean) as string[];
 
-  return { eligible, attendancePercent, attendedDays: days.size, totalSessionsAttended, totalPossibleSessions, mealsServed: mealDays.size, outreachDays: outreachDays.size, missing };
+  return { eligible, attendancePercent, attendedDays: days.size, morningSessions, afternoonSessions, totalSessionsAttended, totalPossibleSessions, mealsServed: mealDays.size, outreachDays: outreachDays.size, missing };
 }

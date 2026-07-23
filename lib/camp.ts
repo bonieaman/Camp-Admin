@@ -35,16 +35,20 @@ export function todayInCampTimezone(timezone = CAMP_TZ) {
 }
 
 export async function ensureSettings() {
-  return prisma.setting.upsert({
-    where: { id: "camp" },
-    update: {},
-    create: {
-      id: "camp",
-      startDate: dateOnly(CAMP_START),
-      endDate: dateOnly(CAMP_END),
-      finalRequiredDate: dateOnly(CAMP_END)
-    }
-  });
+  const settings = await prisma.setting.findUnique({ where: { id: "camp" } });
+  if (settings) return settings;
+  try {
+    return await prisma.setting.create({
+      data: {
+        id: "camp",
+        startDate: dateOnly(CAMP_START),
+        endDate: dateOnly(CAMP_END),
+        finalRequiredDate: dateOnly(CAMP_END)
+      }
+    });
+  } catch {
+    return prisma.setting.findUniqueOrThrow({ where: { id: "camp" } });
+  }
 }
 
 export function activeMealFor(date = new Date(), timezone = CAMP_TZ) {
